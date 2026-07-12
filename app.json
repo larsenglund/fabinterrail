@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "FabInterrail",
+    "slug": "fabinterrail",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "fabinterrail",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fabinterrail.app"
+    },
+    "android": {
+      "package": "com.fabinterrail.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
