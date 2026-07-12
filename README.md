@@ -8,7 +8,11 @@ AI travel assistant grounded in community rail knowledge.
 Built with **Expo / React Native / TypeScript** — one codebase for iOS,
 Android and web.
 
-## Features (MVP)
+> **Status:** the code here is a working spike. The reviewed plan, tech-stack
+> decisions, design direction and phased roadmap live in **[PLAN.md](PLAN.md)**
+> — that document is the source of truth for where the project is going.
+
+## Features (spike)
 
 | Tab | What it does |
 | --- | --- |
@@ -90,14 +94,6 @@ key, the Anthropic API.
 
 ## Roadmap
 
-- [ ] Native date/time pickers (replace ISO text inputs)
-- [ ] Link legs to stops automatically; conflict warnings in the Gantt
-      (overlapping stays, missed connections, pass travel-day counting)
-- [ ] Ticket wallet with QR/PDF attachments and offline viewing
-- [ ] Multi-currency expenses with conversion rates
-- [ ] Journey auto-refresh: pull realtime status for saved legs on the day
-- [ ] More data backends (Trafiklab, SNCF, ÖBB, …) behind `api/transport.ts`
-- [ ] Server-side knowledge ingestion pipeline + embeddings-based retrieval
-- [ ] Trip sharing/sync between travelers (e2e-encrypted)
-- [ ] Push alerts for delays/platform changes on saved legs
-- [ ] Map view of the route
+See **[PLAN.md](PLAN.md)** for the phased plan (design system & mockups →
+core hardening → assistant backend → depth features), the risk register and
+what's explicitly cut from v1.
