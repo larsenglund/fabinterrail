@@ -1,22 +1,23 @@
 /**
- * Client for the community HAFAS proxy `v6.db.transport.rest`.
+ * Train-data client, backed by Transitous (api.transitous.org) — a
+ * community-run MOTIS instance aggregating public GTFS/GTFS-RT feeds for all
+ * of Europe. Keyless, CORS-enabled, actively maintained.
  *
- * The Deutsche Bahn HAFAS endpoint knows far more than Germany: it carries
- * timetables and (where available) realtime data for long-distance and many
- * regional trains across most of Europe — which makes it a good single
- * starting point for an Interrail app. The client is written against a small
- * interface so additional national backends (SNCF, Trafiklab/Resrobot, NS,
- * ÖBB, Trenitalia…) can be added behind the same view-models later.
+ * History: the app originally used the HAFAS proxy v6.db.transport.rest,
+ * which went down (503s) in July 2026 — the exact R1 risk in PLAN.md. The
+ * app-facing view-models (Station, Departure, JourneyVM) are backend-neutral,
+ * so this file is the only thing that changed in the swap, and additional
+ * national sources can still be added behind the same interface.
  */
 
-import type { Departure, JourneyLegVM, JourneyVM, Station } from '../types';
+import { type Departure, type JourneyLegVM, type JourneyVM, type Station } from '../types';
 import { delayMinutes } from '../utils/date';
 
-const BASE = 'https://v6.db.transport.rest';
+const BASE = 'https://api.transitous.org/api';
 
 /**
- * In-memory TTL cache. The backend is a rate-limited community service, so
- * be a good citizen: station lookups rarely change (long TTL), boards and
+ * In-memory TTL cache. The backend is a donation-funded community service,
+ * so be a good citizen: station lookups rarely change (long TTL), boards and
  * journeys are realtime (short TTL, still deduplicates rapid re-queries).
  */
 const TTL = {
@@ -44,112 +45,117 @@ async function get<T>(path: string, params: Record<string, string | number | boo
   const qs = Object.entries(params)
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join('&');
-  const res = await fetch(`${BASE}${path}?${qs}`, {
-    headers: { Accept: 'application/json' },
-  });
+  const res = await fetch(`${BASE}${path}?${qs}`, { headers: { Accept: 'application/json' } });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`transport.rest ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`transitous ${res.status}: ${body.slice(0, 200)}`);
   }
   return (await res.json()) as T;
 }
 
-// --- raw HAFAS shapes (only the fields we consume) -------------------------
+// --- raw MOTIS shapes (only the fields we consume) --------------------------
 
-interface RawLocation {
-  type: string;
-  id?: string;
-  name?: string;
-  latitude?: number;
-  longitude?: number;
-  location?: { latitude?: number; longitude?: number };
-  products?: Record<string, boolean>;
+interface RawGeocodeMatch {
+  type: string; // STOP | ADDRESS | PLACE
+  id: string;
+  name: string;
+  lat?: number;
+  lon?: number;
+  country?: string;
+  areas?: { name: string; default?: boolean }[];
 }
 
-interface RawStopover {
-  tripId?: string;
-  direction?: string | null;
-  line?: { name?: string } | null;
-  when?: string | null;
-  plannedWhen?: string | null;
-  platform?: string | null;
-  plannedPlatform?: string | null;
+interface RawPlace {
+  name?: string;
+  stopId?: string;
+  arrival?: string;
+  departure?: string;
+  scheduledArrival?: string;
+  scheduledDeparture?: string;
+  track?: string;
+  scheduledTrack?: string;
   cancelled?: boolean;
-  remarks?: { text?: string; summary?: string }[];
+}
+
+interface RawStopTime {
+  place: RawPlace;
+  mode?: string;
+  realTime?: boolean;
+  headsign?: string;
+  displayName?: string;
+  routeShortName?: string;
+  tripId?: string;
+  agencyName?: string;
 }
 
 interface RawLeg {
-  origin?: { name?: string };
-  destination?: { name?: string };
-  departure?: string | null;
-  plannedDeparture?: string | null;
-  arrival?: string | null;
-  plannedArrival?: string | null;
-  departurePlatform?: string | null;
-  arrivalPlatform?: string | null;
-  line?: { name?: string } | null;
-  direction?: string | null;
-  walking?: boolean;
+  mode?: string; // WALK | HIGHSPEED_RAIL | REGIONAL_RAIL | NIGHT_RAIL | …
+  from: RawPlace;
+  to: RawPlace;
+  headsign?: string;
+  displayName?: string;
+  routeShortName?: string;
   cancelled?: boolean;
 }
 
-interface RawJourney {
-  type: string;
+interface RawItinerary {
+  duration: number; // seconds
+  startTime: string;
+  endTime: string;
+  transfers: number;
   legs: RawLeg[];
-  refreshToken?: string;
 }
 
 // --- public API -------------------------------------------------------------
 
-/** Fuzzy search for stations across the network. */
+/** Fuzzy station search across all of Europe. */
 export async function searchStations(query: string, limit = 8): Promise<Station[]> {
-  if (query.trim().length < 2) return [];
-  const raw = await cached(`loc:${query.trim().toLowerCase()}:${limit}`, TTL.stations, () =>
-    get<RawLocation[]>('/locations', {
-      query: query.trim(),
-      results: limit,
-      stops: true,
-      addresses: false,
-      poi: false,
-    }),
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const raw = await cached(`loc:${q.toLowerCase()}`, TTL.stations, () =>
+    get<RawGeocodeMatch[]>('/v1/geocode', { text: q, type: 'STOP' }),
   );
   return raw
-    .filter((l) => (l.type === 'stop' || l.type === 'station') && l.id && l.name)
-    .map((l) => ({
-      id: l.id!,
-      name: l.name!,
-      latitude: l.latitude ?? l.location?.latitude,
-      longitude: l.longitude ?? l.location?.longitude,
-      products: l.products,
-    }));
+    .filter((m) => m.type === 'STOP' && m.id && m.name)
+    .slice(0, limit)
+    .map((m) => {
+      const area = m.areas?.find((a) => a.default)?.name;
+      return {
+        id: m.id,
+        name: area && !m.name.includes(area) ? `${m.name}, ${area}` : m.name,
+        latitude: m.lat,
+        longitude: m.lon,
+      };
+    });
 }
 
-/** Live departure board for a station, with realtime delays. */
-export async function getDepartures(stationId: string, durationMin = 120): Promise<Departure[]> {
-  const raw = await cached(`dep:${stationId}:${durationMin}`, TTL.departures, () =>
-    get<{ departures: RawStopover[] }>(`/stops/${encodeURIComponent(stationId)}/departures`, {
-      duration: durationMin,
-      results: 30,
-      remarks: true,
+/** Live departure board with realtime delays, platforms and cancellations. */
+export async function getDepartures(stationId: string, _durationMin = 120): Promise<Departure[]> {
+  const raw = await cached(`dep:${stationId}`, TTL.departures, () =>
+    get<{ stopTimes: RawStopTime[] }>('/v1/stoptimes', {
+      stopId: stationId,
+      n: 30,
+      arriveBy: false,
     }),
   );
-  return (raw.departures ?? [])
-    .filter((d) => d.plannedWhen || d.when)
-    .map((d) => ({
-      tripId: d.tripId ?? '',
-      line: d.line?.name ?? '?',
-      direction: d.direction ?? '',
-      plannedWhen: d.plannedWhen ?? d.when!,
-      when: d.when ?? undefined,
-      delayMinutes: delayMinutes(d.plannedWhen ?? undefined, d.when ?? undefined),
-      platform: d.platform ?? undefined,
-      plannedPlatform: d.plannedPlatform ?? undefined,
-      cancelled: d.cancelled,
-      remarks: (d.remarks ?? [])
-        .map((r) => r.text ?? r.summary ?? '')
-        .filter((t) => t.length > 0)
-        .slice(0, 3),
-    }));
+  return (raw.stopTimes ?? [])
+    .filter((st) => st.place.scheduledDeparture || st.place.departure)
+    .map((st) => {
+      const planned = st.place.scheduledDeparture ?? st.place.departure!;
+      const rt = st.realTime ? (st.place.departure ?? undefined) : undefined;
+      return {
+        tripId: st.tripId ?? '',
+        line: st.displayName ?? st.routeShortName ?? st.mode ?? '?',
+        direction: st.headsign ?? '',
+        plannedWhen: planned,
+        when: rt,
+        delayMinutes: delayMinutes(planned, rt),
+        platform: st.place.track ?? undefined,
+        plannedPlatform: st.place.scheduledTrack ?? undefined,
+        cancelled: st.place.cancelled,
+        remarks: [],
+      };
+    });
 }
 
 export interface JourneyQuery {
@@ -159,61 +165,55 @@ export interface JourneyQuery {
   results?: number;
 }
 
-/** Door-to-door journey options between two stations. */
+/** Door-to-door rail journeys between two stations. */
 export async function searchJourneys(q: JourneyQuery): Promise<JourneyVM[]> {
   const params: Record<string, string | number | boolean> = {
-    from: q.fromId,
-    to: q.toId,
-    results: q.results ?? 6,
-    stopovers: false,
+    fromPlace: q.fromId,
+    toPlace: q.toId,
+    transitModes: 'RAIL',
+    numItineraries: q.results ?? 6,
   };
-  if (q.departure) params.departure = q.departure.toISOString();
+  if (q.departure) params.time = q.departure.toISOString();
 
   const raw = await cached(
-    `jny:${q.fromId}:${q.toId}:${params.departure ?? 'now'}:${params.results}`,
+    `jny:${q.fromId}:${q.toId}:${params.time ?? 'now'}`,
     TTL.journeys,
-    () => get<{ journeys: RawJourney[] }>('/journeys', params),
+    () => get<{ itineraries: RawItinerary[] }>('/v3/plan', params),
   );
-  return (raw.journeys ?? []).map(toJourneyVM).filter((j): j is JourneyVM => j !== null);
+  return (raw.itineraries ?? []).map(toJourneyVM).filter((j): j is JourneyVM => j !== null);
 }
 
-/** Refresh a previously found journey to pull current realtime data. */
-export async function refreshJourney(refreshToken: string): Promise<JourneyVM | null> {
-  const raw = await get<{ journey: RawJourney }>(
-    `/journeys/${encodeURIComponent(refreshToken)}`,
-    {},
-  );
-  return raw.journey ? toJourneyVM(raw.journey) : null;
-}
-
-function toJourneyVM(j: RawJourney): JourneyVM | null {
-  const legs: JourneyLegVM[] = (j.legs ?? [])
-    .filter((l) => l.plannedDeparture || l.departure)
-    .map((l) => ({
-      origin: l.origin?.name ?? '?',
-      destination: l.destination?.name ?? '?',
-      departure: l.departure ?? l.plannedDeparture!,
-      plannedDeparture: l.plannedDeparture ?? l.departure!,
-      arrival: l.arrival ?? l.plannedArrival ?? l.plannedDeparture!,
-      plannedArrival: l.plannedArrival ?? l.arrival ?? l.plannedDeparture!,
-      line: l.walking ? undefined : (l.line?.name ?? undefined),
-      direction: l.direction ?? undefined,
-      departurePlatform: l.departurePlatform ?? undefined,
-      arrivalPlatform: l.arrivalPlatform ?? undefined,
-      cancelled: l.cancelled,
-    }));
+function toJourneyVM(it: RawItinerary): JourneyVM | null {
+  const legs: JourneyLegVM[] = (it.legs ?? [])
+    .map((l): JourneyLegVM | null => {
+      const walking = l.mode === 'WALK';
+      const departure = l.from.departure ?? l.from.scheduledDeparture;
+      const arrival = l.to.arrival ?? l.to.scheduledArrival;
+      if (!departure || !arrival) return null;
+      return {
+        origin: l.from.name ?? '?',
+        destination: l.to.name ?? '?',
+        departure,
+        plannedDeparture: l.from.scheduledDeparture ?? departure,
+        arrival,
+        plannedArrival: l.to.scheduledArrival ?? arrival,
+        line: walking ? undefined : (l.displayName ?? l.routeShortName ?? l.mode),
+        direction: l.headsign ?? undefined,
+        departurePlatform: l.from.track ?? l.from.scheduledTrack ?? undefined,
+        arrivalPlatform: l.to.track ?? l.to.scheduledTrack ?? undefined,
+        cancelled: l.cancelled || l.from.cancelled,
+      };
+    })
+    .filter((l): l is JourneyLegVM => l !== null);
   if (legs.length === 0) return null;
 
-  const departure = legs[0].departure;
-  const arrival = legs[legs.length - 1].arrival;
   const trainLegs = legs.filter((l) => l.line);
   return {
-    id: j.refreshToken ?? `${departure}-${arrival}`,
+    id: `${it.startTime}-${it.endTime}-${it.transfers}`,
     legs,
-    departure,
-    arrival,
-    transfers: Math.max(0, trainLegs.length - 1),
-    durationMinutes: Math.round((Date.parse(arrival) - Date.parse(departure)) / 60000),
-    refreshToken: j.refreshToken,
+    departure: it.startTime,
+    arrival: it.endTime,
+    transfers: it.transfers ?? Math.max(0, trainLegs.length - 1),
+    durationMinutes: Math.round(it.duration / 60),
   };
 }

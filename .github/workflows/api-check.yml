@@ -23,11 +23,19 @@ jobs:
           curl -sS -m 15 "https://api.transitous.org/api/v1/stoptimes?stopId=$SID&n=3" | head -c 1500
       - name: Probe Transitous plan
         run: |
-          echo "=== transitous plan Berlin->Praha ==="
+          echo "=== transitous plan Berlin->Praha (leg summary) ==="
           A=$(curl -sS -m 15 "https://api.transitous.org/api/v1/geocode?text=Berlin%20Hbf&type=STOP" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
           B=$(curl -sS -m 15 "https://api.transitous.org/api/v1/geocode?text=Praha%20hl.n&type=STOP" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
           echo "from=$A to=$B"
-          curl -sS -m 30 "https://api.transitous.org/api/v3/plan?fromPlace=$A&toPlace=$B&transitModes=RAIL" | head -c 2500
+          curl -sS -m 30 "https://api.transitous.org/api/v3/plan?fromPlace=$A&toPlace=$B&transitModes=RAIL&numItineraries=3" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          for it in d.get('itineraries', [])[:3]:
+              print('itinerary', it['startTime'], '->', it['endTime'], 'transfers', it['transfers'], 'dur_s', it['duration'])
+              for l in it['legs']:
+                  print('  leg keys:', sorted(k for k in l.keys() if k not in ('from','to','intermediateStops','legGeometry','steps')))
+                  print('  leg:', l.get('mode'), '|', l.get('displayName'), '|', l.get('routeShortName'), '|', l.get('headsign'), '| track', l['from'].get('track'), l['from'].get('scheduledTrack'))
+          "
       - name: CORS preflight
         run: |
           echo "=== transitous CORS ==="

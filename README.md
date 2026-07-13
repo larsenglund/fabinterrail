@@ -58,11 +58,12 @@ src/
 
 ### Live train data
 
-The MVP uses the community [`v6.db.transport.rest`](https://v6.db.transport.rest)
-HAFAS proxy. Deutsche Bahn's HAFAS carries timetables — and realtime data
-where operators provide it — for long-distance and much regional traffic
-across most of Europe, which makes it a good single starting backend.
-`src/api/transport.ts` maps everything to app-level view models
+Train data comes from [Transitous](https://transitous.org) — a community-run
+MOTIS instance aggregating public GTFS/GTFS-RT feeds for all of Europe.
+Keyless, CORS-enabled, donation-funded. (The app originally used the
+`v6.db.transport.rest` HAFAS proxy, which went down in July 2026 — the
+backend swap touched only `src/api/transport.ts`, exactly as the adapter
+design intended.) The adapter maps everything to app-level view models
 (`Station`, `Departure`, `JourneyVM`), so additional national sources can be
 added behind the same interface:
 

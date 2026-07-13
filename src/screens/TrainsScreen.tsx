@@ -86,13 +86,13 @@ export function TrainsScreen() {
       {journeys.length === 0 && !loading && !error && (
         <EmptyState
           title="Pan-European journey search"
-          hint="Timetables and realtime data via the open HAFAS network — long-distance trains across most of Europe."
+          hint="Timetables and realtime data via Transitous, the open European transit network — trains across all of Europe."
         />
       )}
 
       {journeys.length > 0 && (
         <View style={{ marginTop: spacing.l }}>
-          <Label>{journeys.length} options · via HAFAS · live</Label>
+          <Label>{journeys.length} options · via Transitous · live</Label>
         </View>
       )}
 

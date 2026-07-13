@@ -62,10 +62,10 @@ direction is approved.
 
 ## Risks & mitigations
 
-- **R1 — Train-data dependency.** `transport.rest` is community-run: no SLA,
-  rate limits, and Deutsche Bahn is migrating off classic HAFAS (has already
-  broken these endpoints once). Realtime coverage outside Germany and its
-  neighbors is patchy.
+- **R1 — Train-data dependency.** Community APIs have no SLA. *This risk
+  materialized 2026-07: `v6.db.transport.rest` went down (503s) and the
+  primary backend was swapped to [Transitous](https://transitous.org)
+  (MOTIS, pan-European GTFS/GTFS-RT) — only `src/api/transport.ts` changed.*
   *Mitigation:* keep the adapter interface thin and app-facing view-models
   stable; add client-side TTL caching (station search ≈ forever, boards ≈
   60s, journeys ≈ on-demand); Phase 3 can add a caching proxy + national
