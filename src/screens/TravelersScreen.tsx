@@ -1,15 +1,27 @@
 /**
- * Travelers tab: the group's people, their personal details (stored only
- * on-device), Interrail pass numbers and tickets/reservations.
+ * People: the group. Personal details stay on this device (sensitive fields
+ * in the platform keychain). Pass numbers set in monospace, like the codes
+ * they are.
  */
 
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Body, Button, Card, Chip, Dim, EmptyState, Input, SectionTitle } from '../components/ui';
+import {
+  Button,
+  Chip,
+  ChipRow,
+  Dim,
+  EmptyState,
+  Header,
+  Input,
+  Label,
+  ListRow,
+  TextAction,
+} from '../components/ui';
 import { useAppStore } from '../store/appStore';
-import { colors, spacing } from '../theme';
-import type { PassType, RailPass, Traveler } from '../types';
+import { mono, spacing, usePalette } from '../theme';
+import { type PassType, type RailPass, type Traveler } from '../types';
 
 const PASS_TYPES: { value: PassType; label: string }[] = [
   { value: 'interrail-global', label: 'Interrail Global' },
@@ -19,61 +31,65 @@ const PASS_TYPES: { value: PassType; label: string }[] = [
 ];
 
 export function TravelersScreen() {
+  const p = usePalette();
   const travelers = useAppStore((s) => s.travelers);
   const { addTraveler, removeTraveler } = useAppStore();
   const [name, setName] = useState('');
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.l, paddingBottom: 48 }}>
-      <Card>
-        <SectionTitle>Add traveler</SectionTitle>
-        <Input label="Name" value={name} onChangeText={setName} placeholder="Lars" />
-        <Button
-          title="Add"
-          disabled={!name.trim()}
-          onPress={() => {
-            addTraveler(name.trim());
-            setName('');
-          }}
-        />
-      </Card>
+    <ScrollView style={{ flex: 1, backgroundColor: p.paper }} contentContainerStyle={styles.content}>
+      <Header
+        kicker="The group"
+        title="People"
+        sub="Details and pass numbers are stored only on this device."
+      />
+
+      <Input label="Add traveler" value={name} onChangeText={setName} placeholder="Name" />
+      <Button
+        title="Add"
+        disabled={!name.trim()}
+        onPress={() => {
+          addTraveler(name.trim());
+          setName('');
+        }}
+      />
 
       {travelers.length === 0 && (
-        <EmptyState
-          title="No travelers yet"
-          hint="Add everyone in your group. Personal details and pass numbers are stored only on this device."
-        />
+        <EmptyState title="No travelers yet" hint="Add everyone in your group to share costs and store passes." />
       )}
 
       {travelers.map((t) => (
-        <TravelerCard key={t.id} traveler={t} onRemove={() => confirmRemove(t, removeTraveler)} />
+        <TravelerBlock
+          key={t.id}
+          traveler={t}
+          onRemove={() =>
+            Alert.alert('Remove traveler?', `${t.name} will be removed from all trips.`, [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Remove', style: 'destructive', onPress: () => removeTraveler(t.id) },
+            ])
+          }
+        />
       ))}
+      <View style={{ height: spacing.xxl }} />
     </ScrollView>
   );
 }
 
-function confirmRemove(t: Traveler, removeTraveler: (id: string) => void) {
-  Alert.alert('Remove traveler?', `${t.name} will be removed from all trips.`, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: () => removeTraveler(t.id) },
-  ]);
-}
-
-function TravelerCard({ traveler, onRemove }: { traveler: Traveler; onRemove: () => void }) {
+function TravelerBlock({ traveler, onRemove }: { traveler: Traveler; onRemove: () => void }) {
+  const p = usePalette();
   const { updateTraveler, addPass, removePass } = useAppStore();
   const [editing, setEditing] = useState(false);
   const [showPassForm, setShowPassForm] = useState(false);
 
   return (
-    <Card>
-      <View style={styles.rowBetween}>
-        <View style={styles.nameRow}>
-          <View style={[styles.avatar, { backgroundColor: traveler.color }]}>
-            <Text style={styles.avatarText}>{traveler.name.slice(0, 1).toUpperCase()}</Text>
-          </View>
-          <Text style={styles.name}>{traveler.name}</Text>
+    <View style={[styles.block, { borderTopColor: p.hair }]}>
+      <View style={styles.nameRow}>
+        <View style={[styles.avatar, { backgroundColor: traveler.color }]}>
+          <Text style={styles.avatarText}>{traveler.name.slice(0, 1).toUpperCase()}</Text>
         </View>
-        <Button title={editing ? 'Done' : 'Edit'} kind="ghost" onPress={() => setEditing(!editing)} />
+        <Text style={[styles.name, { color: p.ink }]}>{traveler.name}</Text>
+        <View style={{ flex: 1 }} />
+        <TextAction title={editing ? 'Done' : 'Edit'} onPress={() => setEditing(!editing)} />
       </View>
 
       {editing ? (
@@ -104,40 +120,46 @@ function TravelerCard({ traveler, onRemove }: { traveler: Traveler; onRemove: ()
           <Button title="Remove traveler" kind="danger" onPress={onRemove} />
         </View>
       ) : (
-        <View style={{ marginTop: spacing.s }}>
-          {traveler.passportNumber ? <Dim>Passport: {traveler.passportNumber}</Dim> : null}
-          {traveler.phone ? <Dim>Phone: {traveler.phone}</Dim> : null}
+        <View style={{ marginTop: spacing.xs }}>
+          {traveler.passportNumber ? (
+            <Dim>
+              Passport <Text style={{ fontFamily: mono }}>{traveler.passportNumber}</Text>
+            </Dim>
+          ) : null}
+          {traveler.phone ? <Dim>{traveler.phone}</Dim> : null}
         </View>
       )}
 
       <View style={{ marginTop: spacing.m }}>
-        <Dim>PASSES</Dim>
-        {traveler.passes.length === 0 && <Dim>No pass stored yet.</Dim>}
-        {traveler.passes.map((p) => (
-          <View key={p.id} style={styles.passRow}>
-            <Body>
-              🎫 {PASS_TYPES.find((pt) => pt.value === p.type)?.label ?? p.type} · {p.validity} ·{' '}
-              {p.travelClass}nd class
-            </Body>
-            <Dim>
-              № {p.passNumber} · {p.format}
-            </Dim>
-            <Button title="Remove pass" kind="ghost" onPress={() => removePass(traveler.id, p.id)} />
-          </View>
+        <Label>Passes</Label>
+        {traveler.passes.length === 0 && !showPassForm && <Dim>No pass stored yet.</Dim>}
+        {traveler.passes.map((pass, i) => (
+          <ListRow
+            key={pass.id}
+            last={i === traveler.passes.length - 1}
+            aside={<TextAction title="Remove" onPress={() => removePass(traveler.id, pass.id)} />}
+          >
+            <Text style={[styles.passTitle, { color: p.ink }]}>
+              {PASS_TYPES.find((pt) => pt.value === pass.type)?.label ?? pass.type} · {pass.validity}
+            </Text>
+            <Text style={[styles.passNumber, { color: p.muted, fontFamily: mono }]}>
+              {pass.passNumber} · {pass.format} · {pass.travelClass}nd cl
+            </Text>
+          </ListRow>
         ))}
         {showPassForm ? (
           <PassForm
-            onSave={(p) => {
-              addPass(traveler.id, p);
+            onSave={(pass) => {
+              addPass(traveler.id, pass);
               setShowPassForm(false);
             }}
             onCancel={() => setShowPassForm(false)}
           />
         ) : (
-          <Button title="+ Add pass" kind="ghost" onPress={() => setShowPassForm(true)} />
+          <TextAction title="+ Add pass" onPress={() => setShowPassForm(true)} />
         )}
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -153,17 +175,12 @@ function PassForm({
   const [validity, setValidity] = useState('');
 
   return (
-    <View style={{ marginTop: spacing.m }}>
-      <View style={styles.chips}>
+    <View style={{ marginTop: spacing.s }}>
+      <ChipRow>
         {PASS_TYPES.map((pt) => (
-          <Chip
-            key={pt.value}
-            label={pt.label}
-            active={type === pt.value}
-            onPress={() => setType(pt.value)}
-          />
+          <Chip key={pt.value} label={pt.label} active={type === pt.value} onPress={() => setType(pt.value)} />
         ))}
-      </View>
+      </ChipRow>
       <Input
         label="Pass number"
         value={passNumber}
@@ -171,12 +188,7 @@ function PassForm({
         placeholder="As shown in Rail Planner"
         autoCapitalize="characters"
       />
-      <Input
-        label="Validity"
-        value={validity}
-        onChangeText={setValidity}
-        placeholder="7 days within 1 month"
-      />
+      <Input label="Validity" value={validity} onChangeText={setValidity} placeholder="7 days within 1 month" />
       <Button
         title="Save pass"
         disabled={!passNumber.trim()}
@@ -196,19 +208,12 @@ function PassForm({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nameRow: { flexDirection: 'row', alignItems: 'center' },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.m,
-  },
-  avatarText: { color: '#fff', fontWeight: '700' },
-  name: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  passRow: { marginTop: spacing.s },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.s },
+  content: { padding: spacing.l, paddingBottom: 48 },
+  block: { marginTop: spacing.xl, paddingTop: spacing.l, borderTopWidth: StyleSheet.hairlineWidth },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
+  avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFF7EE', fontWeight: '800' },
+  name: { fontSize: 18, fontWeight: '800' },
+  passTitle: { fontSize: 14, fontWeight: '700' },
+  passNumber: { fontSize: 12, marginTop: 2 },
 });

@@ -1,6 +1,7 @@
 /**
- * Trains tab: journey search between any two European stations, with live
- * data (delays, platforms). Results can be added to the active trip as legs.
+ * Trains: journey search. Search reads like a form on paper; results read
+ * like a departure poster — times first, everything else second. Realtime
+ * deviations surface in signal right in the numerals.
  */
 
 import React, { useState } from 'react';
@@ -8,16 +9,26 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { searchJourneys } from '../api/transport';
 import { StationPicker } from '../components/StationPicker';
-import { Body, Button, Card, Dim, EmptyState, Input, SectionTitle } from '../components/ui';
+import {
+  Button,
+  DateField,
+  Dim,
+  EmptyState,
+  Header,
+  Label,
+  ListRow,
+  TextAction,
+} from '../components/ui';
 import { useActiveTrip, useAppStore } from '../store/appStore';
-import { colors, spacing } from '../theme';
-import type { JourneyVM, Station } from '../types';
+import { spacing, tabular, usePalette } from '../theme';
+import { type JourneyVM, type Station } from '../types';
 import { dayjs, fmtDuration, fmtTime } from '../utils/date';
 
 export function TrainsScreen() {
+  const p = usePalette();
   const [from, setFrom] = useState<Station>();
   const [to, setTo] = useState<Station>();
-  const [when, setWhen] = useState('');
+  const [date, setDate] = useState('');
   const [journeys, setJourneys] = useState<JourneyVM[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -30,7 +41,8 @@ export function TrainsScreen() {
     setLoading(true);
     setError(undefined);
     try {
-      const departure = when ? dayjs(when).toDate() : undefined;
+      // With a date chosen, search from the morning of that day; else now.
+      const departure = date ? dayjs(`${date}T08:00:00`).toDate() : undefined;
       setJourneys(await searchJourneys({ fromId: from.id, toId: to.id, departure }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
@@ -42,7 +54,7 @@ export function TrainsScreen() {
 
   const addToTrip = (j: JourneyVM) => {
     if (!trip) return;
-    const trains = j.legs.filter((l) => l.line).map((l) => l.line!) ;
+    const trains = j.legs.filter((l) => l.line).map((l) => l.line!);
     const overnight = !dayjs(j.departure).isSame(dayjs(j.arrival), 'day');
     addLeg(trip.id, {
       fromStopId: '',
@@ -59,87 +71,83 @@ export function TrainsScreen() {
 
   return (
     <ScrollView
-      style={styles.screen}
-      contentContainerStyle={{ padding: spacing.l, paddingBottom: 48 }}
+      style={{ flex: 1, backgroundColor: p.paper }}
+      contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Card>
-        <SectionTitle>Find trains</SectionTitle>
-        <StationPicker label="From" value={from} onSelect={setFrom} />
-        <StationPicker label="To" value={to} onSelect={setTo} />
-        <Input
-          label="Departure (optional, YYYY-MM-DD HH:mm)"
-          value={when}
-          onChangeText={setWhen}
-          placeholder="leave empty for now"
-          autoCapitalize="none"
-        />
-        <Button title="Search journeys" onPress={search} disabled={!from || !to} loading={loading} />
-        {error ? <Dim>⚠️ {error}</Dim> : null}
-      </Card>
+      <Header kicker="Journey search" title="Find trains" />
 
-      {journeys.length === 0 && !loading && (
+      <StationPicker label="From" value={from} onSelect={setFrom} />
+      <StationPicker label="To" value={to} onSelect={setTo} />
+      <DateField label="When (optional — defaults to now)" value={date} onChange={setDate} />
+      <Button title="Search journeys" onPress={search} disabled={!from || !to} loading={loading} />
+      {error ? <Dim style={{ color: p.danger }}>{error}</Dim> : null}
+
+      {journeys.length === 0 && !loading && !error && (
         <EmptyState
           title="Pan-European journey search"
-          hint="Timetables and realtime data via the open HAFAS network — covers long-distance trains across most of Europe."
+          hint="Timetables and realtime data via the open HAFAS network — long-distance trains across most of Europe."
         />
       )}
 
-      {journeys.map((j) => {
-        const delayed = j.legs.some((l) => l.departure !== l.plannedDeparture);
+      {journeys.length > 0 && (
+        <View style={{ marginTop: spacing.l }}>
+          <Label>{journeys.length} options · via HAFAS · live</Label>
+        </View>
+      )}
+
+      {journeys.map((j, ji) => {
+        const depDelay = dayjs(j.legs[0].departure).diff(dayjs(j.legs[0].plannedDeparture), 'minute');
+        const cancelled = j.legs.some((l) => l.cancelled);
         return (
-          <Card key={j.id}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.time}>
-                {fmtTime(j.departure)} → {fmtTime(j.arrival)}
-              </Text>
-              <Dim>
-                {fmtDuration(j.durationMinutes)} · {j.transfers} transfer{j.transfers === 1 ? '' : 's'}
-              </Dim>
-            </View>
-            {delayed && <Dim>⚠️ realtime deviations on this journey</Dim>}
-            {j.legs.map((l, i) => (
-              <View key={i} style={styles.leg}>
-                {l.line ? (
-                  <>
-                    <Body>
-                      {l.line}
-                      {l.direction ? ` → ${l.direction}` : ''}
-                    </Body>
-                    <Dim>
-                      {fmtTime(l.departure)} {l.origin}
-                      {l.departurePlatform ? ` (pl. ${l.departurePlatform})` : ''} — {fmtTime(l.arrival)}{' '}
-                      {l.destination}
-                      {l.cancelled ? ' · ❌ CANCELLED' : ''}
-                    </Dim>
-                  </>
-                ) : (
-                  <Dim>
-                    🚶 transfer {l.origin} → {l.destination}
-                  </Dim>
-                )}
-              </View>
-            ))}
-            {trip ? (
-              <Button
-                title={added.has(j.id) ? '✓ Added to trip' : `Add to “${trip.name}”`}
-                kind={added.has(j.id) ? 'ghost' : 'primary'}
-                disabled={added.has(j.id)}
-                onPress={() => addToTrip(j)}
-              />
-            ) : (
-              <Dim>Create a trip in the Trip tab to save journeys.</Dim>
+          <ListRow
+            key={j.id}
+            last={ji === journeys.length - 1}
+            aside={
+              trip ? (
+                <TextAction
+                  title={added.has(j.id) ? 'Added ✓' : 'Add →'}
+                  disabled={added.has(j.id)}
+                  onPress={() => addToTrip(j)}
+                />
+              ) : undefined
+            }
+          >
+            <Text style={[styles.times, tabular, { color: p.ink }]}>
+              {fmtTime(j.departure)}
+              {depDelay > 0 && (
+                <Text style={[styles.late, { color: p.signalText }]}> +{depDelay}</Text>
+              )}
+              <Text style={[styles.arrow, { color: p.muted }]}>  →  </Text>
+              {fmtTime(j.arrival)}
+            </Text>
+            <Dim style={tabular}>
+              {j.legs
+                .filter((l) => l.line)
+                .map((l) => l.line)
+                .join(' · ')}
+              {' · '}
+              {j.transfers === 0 ? 'direct' : `${j.transfers} change${j.transfers === 1 ? '' : 's'}`}
+              {' · '}
+              {fmtDuration(j.durationMinutes)}
+              {j.legs[0].departurePlatform ? ` · pl. ${j.legs[0].departurePlatform}` : ''}
+            </Dim>
+            {cancelled && (
+              <Dim style={{ color: p.danger, fontWeight: '700' }}>Partially cancelled — check details</Dim>
             )}
-          </Card>
+          </ListRow>
         );
       })}
+
+      {!trip && journeys.length > 0 && <Dim>Create a trip in the Trip tab to save journeys.</Dim>}
+      <View style={{ height: spacing.xxl }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  time: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  leg: { marginTop: spacing.s },
+  content: { padding: spacing.l, paddingBottom: 48 },
+  times: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, lineHeight: 34 },
+  arrow: { fontSize: 20, fontWeight: '400' },
+  late: { fontSize: 14, fontWeight: '700' },
 });

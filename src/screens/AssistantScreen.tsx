@@ -1,13 +1,14 @@
 /**
- * Assistant tab: chat with a travel expert grounded in the curated Interrail
- * knowledge base + your live trip context. Works offline via the local
- * knowledge base; add an Anthropic API key for full AI answers.
+ * Ask: chat with a travel expert grounded in the curated Interrail knowledge
+ * base + your live trip context. Works offline via the local knowledge base;
+ * an Anthropic API key (stored on device) enables full AI answers.
  */
 
 import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,10 +16,10 @@ import {
   View,
 } from 'react-native';
 
-import { Button, Card, Dim, Input, SectionTitle } from '../components/ui';
+import { Button, Dim, Header, Input, TextAction } from '../components/ui';
 import { askAssistant } from '../services/assistant';
 import { useActiveTrip, useAppStore } from '../store/appStore';
-import { colors, spacing } from '../theme';
+import { radii, spacing, usePalette } from '../theme';
 
 const SUGGESTIONS = [
   'Do night trains use up two travel days?',
@@ -28,6 +29,7 @@ const SUGGESTIONS = [
 ];
 
 export function AssistantScreen() {
+  const p = usePalette();
   const chat = useAppStore((s) => s.chat);
   const apiKey = useAppStore((s) => s.anthropicApiKey);
   const { pushChat, clearChat, setAnthropicApiKey } = useAppStore();
@@ -62,83 +64,105 @@ export function AssistantScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={{ flex: 1, backgroundColor: p.paper }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={{ padding: spacing.l, paddingBottom: spacing.l }}
+        contentContainerStyle={styles.content}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
       >
-        <Card>
-          <SectionTitle>Travel assistant</SectionTitle>
-          <Dim>
-            Answers about passes, reservations, night trains and budgets — grounded in a curated
-            knowledge base ({apiKey ? 'AI answers enabled' : 'offline mode — add an API key for AI answers'})
-            and your trip.
-          </Dim>
-          <Button
-            title={showSettings ? 'Hide settings' : 'Assistant settings'}
-            kind="ghost"
-            onPress={() => setShowSettings(!showSettings)}
-          />
-          {showSettings && (
-            <View>
-              <Input
-                label="Anthropic API key (stored on device)"
-                value={keyInput}
-                onChangeText={setKeyInput}
-                placeholder={apiKey ? '••••••••  (key saved)' : 'sk-ant-…'}
-                autoCapitalize="none"
-                secureTextEntry
-              />
-              <Button
-                title="Save key"
-                disabled={!keyInput.trim()}
-                onPress={() => {
-                  setAnthropicApiKey(keyInput.trim());
-                  setKeyInput('');
-                }}
-              />
-              {apiKey ? (
-                <Button title="Remove key" kind="ghost" onPress={() => setAnthropicApiKey(undefined)} />
-              ) : null}
-              <Button title="Clear chat" kind="ghost" onPress={clearChat} />
-            </View>
-          )}
-        </Card>
+        <Header
+          kicker="Travel assistant"
+          title="Ask"
+          sub={
+            apiKey
+              ? 'AI answers on · grounded in rail knowledge + your trip'
+              : 'Offline knowledge base · add an API key for AI answers'
+          }
+        />
+        <TextAction
+          title={showSettings ? 'Hide settings' : 'Settings'}
+          onPress={() => setShowSettings(!showSettings)}
+        />
+        {showSettings && (
+          <View style={{ marginTop: spacing.m }}>
+            <Input
+              label="Anthropic API key (stored on device)"
+              value={keyInput}
+              onChangeText={setKeyInput}
+              placeholder={apiKey ? '••••••••  (key saved)' : 'sk-ant-…'}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+            <Button
+              title="Save key"
+              disabled={!keyInput.trim()}
+              onPress={() => {
+                setAnthropicApiKey(keyInput.trim());
+                setKeyInput('');
+              }}
+            />
+            {apiKey ? (
+              <Button title="Remove key" kind="ghost" onPress={() => setAnthropicApiKey(undefined)} />
+            ) : null}
+            <Button title="Clear chat" kind="ghost" onPress={clearChat} />
+          </View>
+        )}
 
         {chat.length === 0 && (
-          <View>
+          <View style={{ marginTop: spacing.l }}>
             <Dim>Try one of these:</Dim>
             {SUGGESTIONS.map((s) => (
-              <Button key={s} title={s} kind="ghost" onPress={() => send(s)} />
+              <Pressable
+                key={s}
+                onPress={() => send(s)}
+                style={({ pressed }) => [
+                  styles.suggestion,
+                  { borderColor: p.hair },
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={{ color: p.signalText, fontSize: 14, fontWeight: '600' }}>{s}</Text>
+              </Pressable>
             ))}
           </View>
         )}
 
-        {chat.map((m) => (
-          <View
-            key={m.id}
-            style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.assistantBubble]}
-          >
-            <Text style={styles.bubbleText}>{m.content}</Text>
-            {m.sources && m.sources.length > 0 && (
-              <Text style={styles.sources}>Sources: {[...new Set(m.sources)].join(' · ')}</Text>
-            )}
-          </View>
-        ))}
+        {chat.map((m) => {
+          const isUser = m.role === 'user';
+          return (
+            <View
+              key={m.id}
+              style={[
+                styles.bubble,
+                isUser
+                  ? { backgroundColor: p.ink, alignSelf: 'flex-end' }
+                  : { backgroundColor: p.field, alignSelf: 'flex-start' },
+              ]}
+            >
+              <Text style={{ color: isUser ? p.paper : p.ink, fontSize: 15, lineHeight: 21 }}>
+                {m.content}
+              </Text>
+              {m.sources && m.sources.length > 0 && (
+                <Text style={[styles.sources, { color: isUser ? p.paper : p.muted }]}>
+                  Sources: {[...new Set(m.sources)].join(' · ')}
+                </Text>
+              )}
+            </View>
+          );
+        })}
         {busy && <Dim>Thinking…</Dim>}
       </ScrollView>
 
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, { borderTopColor: p.hair, backgroundColor: p.paper }]}>
         <TextInput
-          style={styles.chatInput}
+          style={[styles.chatInput, { backgroundColor: p.field, borderColor: p.hair, color: p.ink }]}
           value={input}
           onChangeText={setInput}
           placeholder="Ask about trains, passes, tickets…"
-          placeholderTextColor={colors.textDim}
+          placeholderTextColor={p.muted}
           onSubmitEditing={() => send(input)}
           returnKeyType="send"
         />
@@ -149,33 +173,32 @@ export function AssistantScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.l, paddingBottom: spacing.l },
+  suggestion: {
+    borderWidth: 1,
+    borderRadius: radii.m,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.m,
+    marginTop: spacing.s,
+  },
   bubble: {
     borderRadius: 14,
     padding: spacing.m,
-    marginBottom: spacing.s,
-    maxWidth: '90%',
+    marginTop: spacing.s,
+    maxWidth: '88%',
   },
-  userBubble: { backgroundColor: colors.primary, alignSelf: 'flex-end' },
-  assistantBubble: { backgroundColor: colors.card, alignSelf: 'flex-start' },
-  bubbleText: { color: colors.text, fontSize: 15, lineHeight: 21 },
-  sources: { color: colors.textDim, fontSize: 11, marginTop: spacing.s },
+  sources: { fontSize: 11, marginTop: spacing.s, opacity: 0.7 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.m,
     gap: spacing.s,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.bg,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: colors.cardAlt,
-    borderRadius: 10,
+    borderRadius: radii.m,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
     paddingHorizontal: spacing.m,
     paddingVertical: 10,
     fontSize: 15,

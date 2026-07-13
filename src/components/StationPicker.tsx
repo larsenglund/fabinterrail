@@ -4,8 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { searchStations } from '../api/transport';
-import { colors, spacing } from '../theme';
-import type { Station } from '../types';
+import { radii, spacing, usePalette } from '../theme';
+import { type Station } from '../types';
 import { Input } from './ui';
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
 }
 
 export function StationPicker({ label, value, onSelect }: Props) {
+  const p = usePalette();
   const [query, setQuery] = useState(value?.name ?? '');
   const [results, setResults] = useState<Station[]>([]);
   const [open, setOpen] = useState(false);
@@ -48,18 +49,21 @@ export function StationPicker({ label, value, onSelect }: Props) {
         onFocus={() => setOpen(true)}
       />
       {open && results.length > 0 && (
-        <View style={styles.dropdown}>
-          {results.map((st) => (
+        <View style={[styles.dropdown, { backgroundColor: p.field, borderColor: p.hair }]}>
+          {results.map((st, i) => (
             <Pressable
               key={st.id}
-              style={styles.item}
+              style={[
+                styles.item,
+                i < results.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.hair },
+              ]}
               onPress={() => {
                 onSelect(st);
                 setQuery(st.name);
                 setOpen(false);
               }}
             >
-              <Text style={styles.itemText}>{st.name}</Text>
+              <Text style={{ color: p.ink, fontSize: 14 }}>{st.name}</Text>
             </Pressable>
           ))}
         </View>
@@ -70,19 +74,11 @@ export function StationPicker({ label, value, onSelect }: Props) {
 
 const styles = StyleSheet.create({
   dropdown: {
-    backgroundColor: colors.cardAlt,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radii.m,
     marginTop: -spacing.s,
     marginBottom: spacing.m,
     overflow: 'hidden',
   },
-  item: {
-    paddingVertical: 10,
-    paddingHorizontal: spacing.m,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  itemText: { color: colors.text, fontSize: 14 },
+  item: { paddingVertical: 10, paddingHorizontal: spacing.m },
 });

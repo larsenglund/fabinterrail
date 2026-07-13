@@ -1,28 +1,25 @@
 /**
- * Gantt-style trip timeline.
+ * Gantt-style trip timeline — the centerpiece of the Trip screen.
  *
- * Horizontal axis = calendar days of the trip. Each stop renders as a bar
- * spanning its stay (with nights + accommodation info); the train legs render
- * on a separate "Travel" row so overnight trains and long transfers are
- * visible at a glance.
+ * Visual language (design/tokens.md): stay bars in neutral slate (identity
+ * lives in the row labels), night trains in indigo, today marker in signal.
+ * A stop without a booked bed gets a signal outline.
  */
 
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../theme';
-import type { Trip } from '../types';
-import { dayjs, fmtTime, nightsBetween } from '../utils/date';
+import { radii, spacing, tabular, usePalette } from '../theme';
+import { type Trip } from '../types';
+import { dayjs, nightsBetween } from '../utils/date';
 
-const DAY_WIDTH = 64;
-const ROW_HEIGHT = 44;
-const LABEL_WIDTH = 90;
+const DAY_WIDTH = 28;
+const ROW_HEIGHT = 36;
+const LABEL_WIDTH = 92;
 
-interface Props {
-  trip: Trip;
-}
+export function GanttChart({ trip }: { trip: Trip }) {
+  const p = usePalette();
 
-export function GanttChart({ trip }: Props) {
   const { days, start } = useMemo(() => {
     const dates = [
       ...trip.stops.flatMap((s) => [s.arrival, s.departure]),
@@ -40,9 +37,10 @@ export function GanttChart({ trip }: Props) {
 
   if (days.length === 0) return null;
 
-  const width = LABEL_WIDTH + days.length * DAY_WIDTH;
   const today = dayjs().startOf('day');
   const todayOffset = today.diff(start, 'day');
+  const showToday = todayOffset >= 0 && todayOffset < days.length;
+  const width = LABEL_WIDTH + days.length * DAY_WIDTH;
 
   const xFor = (iso: string) => {
     const d = dayjs(iso);
@@ -52,147 +50,145 @@ export function GanttChart({ trip }: Props) {
   };
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.scroller}>
-      <View style={{ width }}>
-        {/* Day header */}
-        <View style={styles.headerRow}>
-          <View style={{ width: LABEL_WIDTH }} />
-          {days.map((d) => {
-            const dd = dayjs(d);
-            const isToday = dd.isSame(today, 'day');
-            return (
-              <View key={d} style={[styles.dayCell, isToday && styles.todayCell]}>
-                <Text style={[styles.dayName, isToday && { color: colors.accent }]}>
-                  {dd.format('dd')}
+    <View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.l }} contentContainerStyle={{ paddingHorizontal: spacing.l }}>
+        <View style={{ width }}>
+          {/* Day axis */}
+          <View style={styles.headerRow}>
+            <View style={{ width: LABEL_WIDTH }} />
+            {days.map((d) => {
+              const dd = dayjs(d);
+              const isToday = dd.isSame(today, 'day');
+              return (
+                <Text
+                  key={d}
+                  style={[
+                    styles.dayNum,
+                    tabular,
+                    { color: isToday ? p.signalText : p.muted, fontWeight: isToday ? '800' : '500' },
+                  ]}
+                >
+                  {dd.format('D')}
                 </Text>
-                <Text style={[styles.dayNum, isToday && { color: colors.accent }]}>
-                  {dd.format('D/M')}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
 
-        {/* Stops: one row per stop */}
-        {trip.stops.map((stop, i) => {
-          const x0 = xFor(stop.arrival);
-          const x1 = Math.max(xFor(stop.departure), x0 + 20);
-          const nights = nightsBetween(stop.arrival, stop.departure);
-          const hasBed = stop.accommodations.length > 0;
-          return (
-            <View key={stop.id} style={[styles.row, { height: ROW_HEIGHT }]}>
-              <View style={styles.rowLabelBox}>
-                <Text style={styles.rowLabel} numberOfLines={1}>
+          {/* One row per stop */}
+          {trip.stops.map((stop) => {
+            const x0 = xFor(stop.arrival);
+            const x1 = Math.max(xFor(stop.departure), x0 + 22);
+            const nights = nightsBetween(stop.arrival, stop.departure);
+            const noBed = nights > 0 && stop.accommodations.length === 0;
+            return (
+              <View key={stop.id} style={[styles.row, { height: ROW_HEIGHT, borderBottomColor: p.hair }]}>
+                <Text numberOfLines={1} style={[styles.rowLabel, { color: p.ink, width: LABEL_WIDTH }]}>
                   {stop.place}
                 </Text>
-              </View>
-              {days.map((d) => (
-                <View key={d} style={styles.gridCell} />
-              ))}
-              <View
-                style={[
-                  styles.bar,
-                  {
-                    left: x0,
-                    width: x1 - x0,
-                    backgroundColor: stop.color ?? barColor(i),
-                  },
-                ]}
-              >
-                <Text style={styles.barText} numberOfLines={1}>
-                  {nights > 0 ? `${nights}🌙` : 'day'}
-                  {hasBed ? ' 🛏' : nights > 0 ? ' ⚠️ no bed' : ''}
-                </Text>
-              </View>
-            </View>
-          );
-        })}
-
-        {/* Travel row: all legs */}
-        <View style={[styles.row, { height: ROW_HEIGHT }]}>
-          <View style={styles.rowLabelBox}>
-            <Text style={[styles.rowLabel, { color: colors.textDim }]}>Trains</Text>
-          </View>
-          {days.map((d) => (
-            <View key={d} style={styles.gridCell} />
-          ))}
-          {trip.legs.map((leg) => {
-            const x0 = xFor(leg.departure);
-            const x1 = Math.max(xFor(leg.arrival), x0 + 14);
-            return (
-              <View
-                key={leg.id}
-                style={[
-                  styles.bar,
-                  styles.legBar,
-                  leg.isNightTrain && { backgroundColor: colors.night },
-                  { left: x0, width: x1 - x0 },
-                ]}
-              >
-                <Text style={styles.barText} numberOfLines={1}>
-                  {leg.isNightTrain ? '🌙 ' : '🚆 '}
-                  {fmtTime(leg.departure)}
-                </Text>
+                <View
+                  style={[
+                    styles.bar,
+                    { left: x0, width: x1 - x0, backgroundColor: p.slate },
+                    noBed && { borderWidth: 2, borderColor: p.signal },
+                  ]}
+                >
+                  <Text numberOfLines={1} style={[styles.barText, { color: p.slateInk }]}>
+                    {nights > 0 ? `${nights} n${noBed ? ' · no bed' : ''}` : 'day'}
+                  </Text>
+                </View>
+                {showToday && <TodayLine x={LABEL_WIDTH + todayOffset * DAY_WIDTH + DAY_WIDTH / 2} color={p.signal} />}
               </View>
             );
           })}
-        </View>
 
-        {/* Today marker */}
-        {todayOffset >= 0 && todayOffset < days.length && (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.todayLine,
-              { left: LABEL_WIDTH + todayOffset * DAY_WIDTH, height: (trip.stops.length + 1) * ROW_HEIGHT + 40 },
-            ]}
-          />
-        )}
+          {/* Travel row */}
+          <View style={[styles.row, { height: ROW_HEIGHT - 6, borderBottomColor: 'transparent' }]}>
+            <Text style={[styles.rowLabel, styles.travelLabel, { color: p.muted, width: LABEL_WIDTH }]}>
+              TRAVEL
+            </Text>
+            {trip.legs.map((leg) => {
+              const x0 = xFor(leg.departure);
+              const x1 = Math.max(xFor(leg.arrival), x0 + 14);
+              return (
+                <View
+                  key={leg.id}
+                  style={[
+                    styles.travelBar,
+                    {
+                      left: x0,
+                      width: x1 - x0,
+                      backgroundColor: leg.isNightTrain ? p.night : p.slate,
+                      opacity: leg.isNightTrain ? 1 : 0.55,
+                    },
+                  ]}
+                />
+              );
+            })}
+            {showToday && <TodayLine x={LABEL_WIDTH + todayOffset * DAY_WIDTH + DAY_WIDTH / 2} color={p.signal} />}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Key */}
+      <View style={styles.key}>
+        <KeySwatch color={p.slate} label="Stay" muted={p.muted} />
+        <KeySwatch color={p.night} label="Night train" muted={p.muted} />
+        <KeySwatch color={p.signal} label="Today" muted={p.muted} line />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
-const BAR_COLORS = ['#4f8ef7', '#38c6a3', '#f7b84f', '#e06ccf', '#5fd0f7', '#9ccf5f'];
-function barColor(i: number): string {
-  return BAR_COLORS[i % BAR_COLORS.length];
+function TodayLine({ x, color }: { x: number; color: string }) {
+  return <View pointerEvents="none" style={[styles.todayLine, { left: x, backgroundColor: color }]} />;
+}
+
+function KeySwatch({
+  color,
+  label,
+  muted,
+  line,
+}: {
+  color: string;
+  label: string;
+  muted: string;
+  line?: boolean;
+}) {
+  return (
+    <View style={styles.keyItem}>
+      <View
+        style={
+          line
+            ? { width: 2, height: 12, backgroundColor: color, borderRadius: 1 }
+            : { width: 14, height: 8, backgroundColor: color, borderRadius: 4 }
+        }
+      />
+      <Text style={{ fontSize: 11, color: muted }}>{label}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  scroller: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+  headerRow: { flexDirection: 'row', paddingBottom: 6 },
+  dayNum: { width: DAY_WIDTH, textAlign: 'center', fontSize: 10 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerRow: { flexDirection: 'row', paddingVertical: spacing.s },
-  dayCell: { width: DAY_WIDTH, alignItems: 'center' },
-  todayCell: {},
-  dayName: { color: colors.textDim, fontSize: 11 },
-  dayNum: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  rowLabelBox: { width: LABEL_WIDTH, paddingLeft: spacing.m, justifyContent: 'center' },
-  rowLabel: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  gridCell: {
-    width: DAY_WIDTH,
-    height: '100%',
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: colors.border,
-  },
+  rowLabel: { fontSize: 12, fontWeight: '700', paddingRight: spacing.s },
+  travelLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.9 },
   bar: {
     position: 'absolute',
-    height: 28,
-    borderRadius: 8,
+    height: 22,
+    borderRadius: radii.s,
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
   },
-  legBar: { backgroundColor: colors.accent, height: 22 },
-  barText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  todayLine: {
-    position: 'absolute',
-    top: 34,
-    width: 2,
-    backgroundColor: colors.accent,
-    opacity: 0.7,
-  },
+  barText: { fontSize: 10, fontWeight: '700' },
+  travelBar: { position: 'absolute', height: 12, borderRadius: radii.s },
+  todayLine: { position: 'absolute', top: -2, bottom: -2, width: 2, borderRadius: 1, opacity: 0.85 },
+  key: { flexDirection: 'row', gap: spacing.l, marginTop: spacing.m },
+  keyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

@@ -88,11 +88,12 @@ direction is approved.
 - [x] Design tokens (`design/tokens.md`) — validated light/dark palettes
 - [x] Clickable HTML mockups (`design/mockups.html`): Trip/Gantt, Trains,
       Departures, Budget
-- [ ] **Review & approval gate ← awaiting review**
+- [x] Review & approval gate — **approved 2026-07-13**
 
 ### Phase 1 — Core app
-- [ ] Apply design system across all screens (blocked on Phase 0 approval)
-- [ ] Native date pickers everywhere (done with the restyle)
+- [x] Apply design system across all screens (theme tokens in `src/theme.ts`,
+      primitives in `src/components/ui.tsx`)
+- [x] Native date pickers (iOS/Android; ISO text fallback on web)
 - [x] expo-secure-store vault for passports & pass numbers
 - [x] Store schema version + migration hook
 - [x] TTL caching in the transport adapter
