@@ -1,0 +1,21 @@
+name: API diagnostic
+
+on: workflow_dispatch
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe transport.rest endpoints
+        run: |
+          echo "=== locations ==="
+          curl -sS -i "https://v6.db.transport.rest/locations?query=Berlin&results=2&stops=true&addresses=false&poi=false" | head -40
+          echo ""
+          echo "=== CORS preflight ==="
+          curl -sS -i -X OPTIONS \
+            -H "Origin: https://larsenglund.github.io" \
+            -H "Access-Control-Request-Method: GET" \
+            "https://v6.db.transport.rest/locations?query=Berlin" | head -25
+          echo ""
+          echo "=== departures (Berlin Hbf 8011160) ==="
+          curl -sS -i "https://v6.db.transport.rest/stops/8011160/departures?duration=60&results=2" | head -25
