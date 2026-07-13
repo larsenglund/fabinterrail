@@ -6,16 +6,32 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe transport.rest endpoints
+      - name: Probe transport.rest
+        continue-on-error: true
         run: |
-          echo "=== locations ==="
-          curl -sS -i "https://v6.db.transport.rest/locations?query=Berlin&results=2&stops=true&addresses=false&poi=false" | head -40
-          echo ""
-          echo "=== CORS preflight ==="
-          curl -sS -i -X OPTIONS \
+          echo "=== db.transport.rest locations ==="
+          curl -sS -m 15 -i "https://v6.db.transport.rest/locations?query=Berlin&results=1&stops=true&addresses=false&poi=false" | head -12
+      - name: Probe Transitous geocode
+        run: |
+          echo "=== transitous geocode ==="
+          curl -sS -m 15 "https://api.transitous.org/api/v1/geocode?text=Berlin%20Hbf&type=STOP" | head -c 1200
+      - name: Probe Transitous stoptimes
+        run: |
+          echo "=== transitous stoptimes (needs stopId from geocode) ==="
+          SID=$(curl -sS -m 15 "https://api.transitous.org/api/v1/geocode?text=K%C3%B8benhavn%20H&type=STOP" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+          echo "stopId=$SID"
+          curl -sS -m 15 "https://api.transitous.org/api/v1/stoptimes?stopId=$SID&n=3" | head -c 1500
+      - name: Probe Transitous plan
+        run: |
+          echo "=== transitous plan Berlin->Praha ==="
+          A=$(curl -sS -m 15 "https://api.transitous.org/api/v1/geocode?text=Berlin%20Hbf&type=STOP" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+          B=$(curl -sS -m 15 "https://api.transitous.org/api/v1/geocode?text=Praha%20hl.n&type=STOP" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+          echo "from=$A to=$B"
+          curl -sS -m 30 "https://api.transitous.org/api/v3/plan?fromPlace=$A&toPlace=$B&transitModes=RAIL" | head -c 2500
+      - name: CORS preflight
+        run: |
+          echo "=== transitous CORS ==="
+          curl -sS -m 15 -i -X OPTIONS \
             -H "Origin: https://larsenglund.github.io" \
             -H "Access-Control-Request-Method: GET" \
-            "https://v6.db.transport.rest/locations?query=Berlin" | head -25
-          echo ""
-          echo "=== departures (Berlin Hbf 8011160) ==="
-          curl -sS -i "https://v6.db.transport.rest/stops/8011160/departures?duration=60&results=2" | head -25
+            "https://api.transitous.org/api/v1/geocode?text=Berlin" | head -20
