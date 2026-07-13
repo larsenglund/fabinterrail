@@ -1,7 +1,8 @@
 /**
  * Ask: chat with a travel expert grounded in the curated Interrail knowledge
- * base + your live trip context. Works offline via the local knowledge base;
- * an Anthropic API key (stored on device) enables full AI answers.
+ * base + your live trip context. Offline it answers from the bundled corpus;
+ * with the assistant Worker configured (worker/README.md) it gives full AI
+ * answers — no API key ever lives in the app.
  */
 
 import React, { useRef, useState } from 'react';
@@ -16,8 +17,8 @@ import {
   View,
 } from 'react-native';
 
-import { Button, Dim, Header, Input, TextAction } from '../components/ui';
-import { askAssistant } from '../services/assistant';
+import { Button, Dim, Header, TextAction } from '../components/ui';
+import { askAssistant, assistantOnline } from '../services/assistant';
 import { useActiveTrip, useAppStore } from '../store/appStore';
 import { radii, spacing, usePalette } from '../theme';
 
@@ -31,15 +32,12 @@ const SUGGESTIONS = [
 export function AssistantScreen() {
   const p = usePalette();
   const chat = useAppStore((s) => s.chat);
-  const apiKey = useAppStore((s) => s.anthropicApiKey);
-  const { pushChat, clearChat, setAnthropicApiKey } = useAppStore();
+  const { pushChat, clearChat } = useAppStore();
   const trip = useActiveTrip();
   const travelers = useAppStore((s) => s.travelers);
 
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [keyInput, setKeyInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
   const send = async (question: string) => {
@@ -49,7 +47,7 @@ export function AssistantScreen() {
     pushChat({ role: 'user', content: q });
     setBusy(true);
     try {
-      const answer = await askAssistant(q, { trip, travelers, apiKey });
+      const answer = await askAssistant(q, { trip, travelers });
       pushChat({ role: 'assistant', content: answer.text, sources: answer.sources });
     } catch (e) {
       pushChat({
@@ -77,39 +75,12 @@ export function AssistantScreen() {
           kicker="Travel assistant"
           title="Ask"
           sub={
-            apiKey
-              ? 'AI answers on · grounded in rail knowledge + your trip'
-              : 'Offline knowledge base · add an API key for AI answers'
+            assistantOnline
+              ? 'AI answers · grounded in rail knowledge + your trip'
+              : 'Offline knowledge base · connect the Worker for AI answers'
           }
         />
-        <TextAction
-          title={showSettings ? 'Hide settings' : 'Settings'}
-          onPress={() => setShowSettings(!showSettings)}
-        />
-        {showSettings && (
-          <View style={{ marginTop: spacing.m }}>
-            <Input
-              label="Anthropic API key (stored on device)"
-              value={keyInput}
-              onChangeText={setKeyInput}
-              placeholder={apiKey ? '••••••••  (key saved)' : 'sk-ant-…'}
-              autoCapitalize="none"
-              secureTextEntry
-            />
-            <Button
-              title="Save key"
-              disabled={!keyInput.trim()}
-              onPress={() => {
-                setAnthropicApiKey(keyInput.trim());
-                setKeyInput('');
-              }}
-            />
-            {apiKey ? (
-              <Button title="Remove key" kind="ghost" onPress={() => setAnthropicApiKey(undefined)} />
-            ) : null}
-            <Button title="Clear chat" kind="ghost" onPress={clearChat} />
-          </View>
-        )}
+        {chat.length > 0 && <TextAction title="Clear chat" onPress={clearChat} />}
 
         {chat.length === 0 && (
           <View style={{ marginTop: spacing.l }}>

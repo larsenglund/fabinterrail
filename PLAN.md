@@ -100,10 +100,13 @@ direction is approved.
 - [x] ESLint/Prettier, vitest for money/date logic, CI (typecheck + lint + test)
 
 ### Phase 2 — Assistant
-- [ ] Cloudflare Worker: holds Anthropic key, merges knowledge file + trip
-      context, calls Claude; app makes one fetch
-- [ ] Remove BYO-key UI; offline knowledge base remains the no-network path
-- [ ] Grow curated knowledge file (Tågsemester-style distilled Q&A)
+- [x] Cloudflare Worker (`worker/`): holds Anthropic key, merges
+      `shared/knowledge.json` + trip context, calls Claude; app makes one
+      fetch to `EXPO_PUBLIC_ASSISTANT_URL` (deploy: `worker/README.md`)
+- [x] Removed BYO-key UI (store schema v2 migration drops the old key);
+      offline knowledge base remains the no-network path
+- [ ] Grow curated knowledge file (Tågsemester-style distilled Q&A) — ongoing,
+      by pull request against `shared/knowledge.json`
 
 ### Phase 3 — Depth, by demand
 - [ ] Ticket wallet (QR/PDF attachments, offline viewing)

@@ -21,7 +21,7 @@ Android and web.
 | **Departures** | Live departure board for any station — realtime delays, platform changes, disruption remarks. Quick chips for your trip's stops. Pull to refresh. |
 | **Travelers** | The group's people: personal details (passport, DOB, phone, emergency contact), **Interrail/Eurail pass numbers** and validity. Everything is stored only on-device. |
 | **Budget** | Shared expenses with "paid by" / "split between" per expense, per-traveler balances, a minimal **settlement plan** (who pays whom), spend by category, and budget-vs-actual follow-up with a progress bar. |
-| **Assistant** | Chat assistant for pass rules, reservations, night trains, budgets. Grounded in a curated knowledge base + your live trip context. Works offline; add an Anthropic API key in its settings for full AI answers. |
+| **Ask** | Chat assistant for pass rules, reservations, night trains, budgets. Grounded in a curated knowledge base + your live trip context. Works offline; deploy the one-file Cloudflare Worker (`worker/README.md`) and set `EXPO_PUBLIC_ASSISTANT_URL` for full AI answers — no API key ever ships in the app. |
 
 ## Getting started
 

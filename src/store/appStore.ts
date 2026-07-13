@@ -25,8 +25,11 @@ import { loadVault, saveVault, type SecureVault } from '../utils/secure';
 /**
  * Bump when the persisted shape changes, and handle the old shape in
  * `migrate` below. Never change persisted fields without a migration.
+ *
+ * v1 → v2: dropped `anthropicApiKey` (the assistant now talks to a Worker
+ * that holds the key server-side; see worker/README.md).
  */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 /** Mirror sensitive fields into the platform keychain (best-effort async). */
 function syncVault(travelers: Traveler[]): void {
@@ -64,7 +67,6 @@ interface AppState {
   travelers: Traveler[];
   expenses: Expense[];
   chat: ChatMessage[];
-  anthropicApiKey?: string;
 
   // trips & stops
   createTrip: (name: string, currency: string) => Trip;
@@ -93,7 +95,6 @@ interface AppState {
   // assistant
   pushChat: (msg: Omit<ChatMessage, 'id' | 'createdAt'>) => void;
   clearChat: () => void;
-  setAnthropicApiKey: (key?: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -104,7 +105,6 @@ export const useAppStore = create<AppState>()(
       travelers: [],
       expenses: [],
       chat: [],
-      anthropicApiKey: undefined,
 
       createTrip: (name, currency) => {
         const trip: Trip = {
@@ -268,16 +268,18 @@ export const useAppStore = create<AppState>()(
           chat: [...s.chat, { ...msg, id: uid('msg-'), createdAt: new Date().toISOString() }],
         })),
       clearChat: () => set({ chat: [] }),
-      setAnthropicApiKey: (key) => set({ anthropicApiKey: key || undefined }),
     }),
     {
       name: 'fabinterrail-store',
       storage: createJSONStorage(() => AsyncStorage),
       version: SCHEMA_VERSION,
-      migrate: (persisted, _version) => {
-        // v1 is the first versioned schema. When bumping SCHEMA_VERSION,
-        // transform `persisted` from `_version` to the current shape here.
-        return persisted as AppState;
+      migrate: (persisted, version) => {
+        const state = persisted as AppState & { anthropicApiKey?: string };
+        if (version < 2) {
+          // v1 stored an on-device Anthropic API key; the Worker owns it now.
+          delete state.anthropicApiKey;
+        }
+        return state as AppState;
       },
       partialize: (state) =>
         ({
