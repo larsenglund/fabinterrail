@@ -1,0 +1,587 @@
+<title>FabInterrail — Phase 0 Design Mockups</title>
+<style>
+  :root {
+    --paper: #FBF9F5;
+    --field: #F3EFE7;
+    --ink: #211D16;
+    --muted: #7A7263;
+    --hair: #E6E0D4;
+    --signal: #C2570A;
+    --signal-ink: #C2570A;
+    --night: #4F46B8;
+    --night-ink: #FBF9F5;
+    --slate: #57534A;
+    --slate-ink: #FBF9F5;
+    --good: #3D7A44;
+    --danger: #B3261E;
+    --frame-shadow: 0 24px 60px -30px rgba(33, 29, 22, 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #15171F;
+      --field: #1D202B;
+      --ink: #ECE9E1;
+      --muted: #979DAD;
+      --hair: #2A2E3B;
+      --signal: #D07B22;
+      --signal-ink: #EDA14E;
+      --night: #8B84E8;
+      --night-ink: #15171F;
+      --slate: #8A8478;
+      --slate-ink: #15171F;
+      --good: #7FBF87;
+      --danger: #E58B84;
+      --frame-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #15171F;
+    --field: #1D202B;
+    --ink: #ECE9E1;
+    --muted: #979DAD;
+    --hair: #2A2E3B;
+    --signal: #D07B22;
+    --signal-ink: #EDA14E;
+    --night: #8B84E8;
+    --night-ink: #15171F;
+    --slate: #8A8478;
+    --slate-ink: #15171F;
+    --good: #7FBF87;
+    --danger: #E58B84;
+    --frame-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+  }
+  :root[data-theme="light"] {
+    --paper: #FBF9F5;
+    --field: #F3EFE7;
+    --ink: #211D16;
+    --muted: #7A7263;
+    --hair: #E6E0D4;
+    --signal: #C2570A;
+    --signal-ink: #C2570A;
+    --night: #4F46B8;
+    --night-ink: #FBF9F5;
+    --slate: #57534A;
+    --slate-ink: #FBF9F5;
+    --good: #3D7A44;
+    --danger: #B3261E;
+    --frame-shadow: 0 24px 60px -30px rgba(33, 29, 22, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--signal-ink);
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 44px); line-height: 1.1; font-weight: 800;
+    letter-spacing: -0.02em; margin: 10px 0 14px; text-wrap: balance;
+  }
+  .lede { max-width: 62ch; color: var(--muted); margin: 0 0 8px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- token strip ---------- */
+  .tokens {
+    margin: 40px 0 8px; padding: 24px 0;
+    border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px;
+  }
+  .tok-h { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .sw i { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--hair); display: inline-block; }
+  .spec-time { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .spec-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+  .spec-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .tok-note { font-size: 13px; color: var(--muted); max-width: 34ch; }
+  .tok-note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  .screen-sec { margin-top: 72px; scroll-margin-top: 24px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-num {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; color: var(--signal-ink); font-weight: 700;
+  }
+  .sec-head h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+  .sec-why { color: var(--muted); font-size: 14px; max-width: 62ch; margin: 0 0 28px; }
+
+  /* ---------- phone frame ---------- */
+  .phone {
+    width: min(392px, 100%); margin: 0 auto;
+    border: 1px solid var(--hair); border-radius: 44px;
+    background: var(--paper); box-shadow: var(--frame-shadow);
+    overflow: hidden;
+  }
+  .statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 28px 6px; font-size: 13px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .sb-icons { display: flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11px; letter-spacing: 0.04em; }
+  .screen { padding: 8px 20px 16px; min-height: 560px; display: flex; flex-direction: column; }
+  .app-h { padding: 8px 0 4px; }
+  .app-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .app-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0 0; line-height: 1.15; }
+  .app-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .app-sub .live { color: var(--good); font-weight: 700; }
+  .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--good); margin-right: 4px; }
+
+  .tabbar {
+    display: flex; border-top: 1px solid var(--hair);
+    padding: 10px 8px 22px; justify-content: space-around; background: var(--paper);
+  }
+  .tab {
+    appearance: none; background: none; border: 0; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--muted); font-family: inherit; padding: 2px 6px; border-radius: 8px;
+  }
+  .tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tab.on { color: var(--signal-ink); }
+  .tab.dim { opacity: 0.45; cursor: default; }
+  .tab:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+  .row:last-child { border-bottom: 0; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+    padding: 3px 9px; border-radius: 999px; border: 1px solid var(--hair); color: var(--muted);
+  }
+  .chip.warn { color: var(--signal-ink); border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
+  .chip.night { color: var(--night); border-color: color-mix(in srgb, var(--night) 45%, transparent); }
+  .chip.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+
+  /* ---------- gantt ---------- */
+  .gantt-scroll { overflow-x: auto; margin: 12px -20px 0; padding: 0 20px; }
+  .gantt { min-width: 580px; }
+  .g-days { display: grid; grid-template-columns: 88px repeat(17, 28px); font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .g-days span { text-align: center; padding-bottom: 6px; }
+  .g-days .today { color: var(--signal-ink); font-weight: 800; }
+  .g-row { display: grid; grid-template-columns: 88px repeat(17, 28px); align-items: center; height: 34px; position: relative; }
+  .g-row::after { content: ""; position: absolute; left: 88px; right: 0; bottom: 0; border-bottom: 1px solid var(--hair); opacity: 0.6; }
+  .g-label { font-size: 12px; font-weight: 700; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .g-label small { display: block; font-weight: 500; color: var(--muted); font-size: 10px; }
+  .g-bar {
+    height: 22px; border-radius: 6px; background: var(--slate); color: var(--slate-ink);
+    font-size: 10px; font-weight: 700; display: flex; align-items: center; padding: 0 8px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .g-bar:hover { filter: brightness(1.08); }
+  .g-bar.night-bar { background: var(--night); color: var(--night-ink); }
+  .g-bar.warn-bar { box-shadow: inset 0 0 0 2px var(--signal); }
+  .g-travel { height: 12px; border-radius: 6px; background: var(--slate); opacity: 0.55; }
+  .g-travel.night-bar { background: var(--night); opacity: 1; }
+  .g-today { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--signal); border-radius: 1px; }
+  .g-key { display: flex; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .g-key i { display: inline-block; width: 14px; height: 8px; border-radius: 4px; background: var(--slate); margin-right: 5px; }
+  .g-key .k-night i { background: var(--night); }
+  .g-key .k-today i { width: 2px; height: 12px; background: var(--signal); border-radius: 1px; vertical-align: -2px; }
+
+  .stop-nights { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stop-nights small { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .stop-name { font-weight: 700; }
+  .stop-dates { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ---------- trains ---------- */
+  .field-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+  .field-row .lab { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); width: 44px; }
+  .field-row .val { font-size: 16px; font-weight: 600; }
+  .swap {
+    margin-left: auto; width: 32px; height: 32px; border-radius: 10px;
+    border: 1px solid var(--hair); background: var(--field);
+    display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px;
+  }
+  .search-btn {
+    margin-top: 16px; width: 100%; padding: 13px; border: 0; border-radius: 12px;
+    background: var(--signal); color: #FFF7EE; font-size: 15px; font-weight: 700;
+    font-family: inherit; cursor: pointer;
+  }
+  .j-times { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .j-times .arr { color: var(--muted); font-weight: 400; font-size: 20px; padding: 0 2px; }
+  .j-times .late { color: var(--signal-ink); font-size: 14px; font-weight: 700; vertical-align: super; }
+  .j-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .j-meta b { color: var(--ink); font-weight: 600; }
+  .j-side { text-align: right; flex-shrink: 0; }
+  .j-add { font-size: 13px; font-weight: 700; color: var(--signal-ink); background: none; border: 0; font-family: inherit; cursor: pointer; padding: 0; }
+  .result-h { display: flex; justify-content: space-between; align-items: baseline; margin-top: 20px; }
+  .result-h .lab { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---------- departures ---------- */
+  .dep-row { display: grid; grid-template-columns: 78px 1fr auto; gap: 12px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--hair); }
+  .dep-row:last-child { border-bottom: 0; }
+  .dep-time { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .dep-time small { display: block; font-size: 11px; font-weight: 700; color: var(--signal-ink); }
+  .dep-line { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; color: var(--muted); }
+  .dep-dest { font-size: 15px; font-weight: 600; }
+  .dep-note { font-size: 12px; color: var(--muted); }
+  .dep-plat { text-align: center; min-width: 44px; }
+  .dep-plat b { display: block; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dep-plat span { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .dep-plat.changed b { color: var(--signal-ink); }
+  .cancelled .dep-time, .cancelled .dep-dest { text-decoration: line-through; opacity: 0.5; }
+  .cancelled .cancel-note { color: var(--danger); font-weight: 700; }
+
+  /* ---------- budget ---------- */
+  .hero-num { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .hero-num small { font-size: 16px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+  .hero-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .prog { height: 6px; border-radius: 3px; background: var(--field); margin-top: 14px; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 51%; border-radius: 3px; background: var(--good); }
+  .cat-row { display: grid; grid-template-columns: 96px 1fr 64px; gap: 10px; align-items: center; padding: 9px 0; }
+  .cat-row .lab { font-size: 13px; font-weight: 600; }
+  .cat-bar { height: 10px; border-radius: 4px; background: var(--slate); }
+  .cat-bar:hover { filter: brightness(1.08); }
+  .cat-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .bal-name { font-weight: 700; }
+  .bal-amt { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .bal-amt.pos { color: var(--good); }
+  .bal-amt.neg { color: var(--danger); }
+  .settle { font-size: 14px; padding: 12px 0; border-bottom: 1px solid var(--hair); display: flex; justify-content: space-between; align-items: baseline; }
+  .settle:last-child { border-bottom: 0; }
+  .settle b { font-variant-numeric: tabular-nums; }
+  .settle .dir { color: var(--muted); padding: 0 6px; }
+  .h3row { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 24px 0 2px; }
+
+  footer { margin-top: 88px; padding-top: 24px; border-top: 1px solid var(--hair); color: var(--muted); font-size: 13px; max-width: 66ch; }
+  footer b { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">FabInterrail · Phase 0 · Design direction</div>
+    <h1>The timetable is the interface.</h1>
+    <p class="lede">
+      Four key screens in the proposed design system: <strong>paper &amp; ink with hairline rules</strong>,
+      heavy tabular numerals for times and money, one <strong>signal amber</strong> accent, and
+      <strong>indigo reserved for night trains</strong>. Typography is the native platform face
+      (SF&nbsp;Pro&nbsp;/&nbsp;Roboto in the app), because the app should feel like the phone it runs on.
+    </p>
+    <p class="lede">Flip the viewer's theme toggle to see <strong>night-train mode</strong> — a designed dark theme, not an inversion. Tab bars in the frames are clickable.</p>
+  </header>
+
+  <div class="tokens">
+    <div>
+      <div class="tok-h">Palette</div>
+      <div class="swatches">
+        <span class="sw"><i style="background:var(--paper)"></i>Paper</span>
+        <span class="sw"><i style="background:var(--ink)"></i>Ink</span>
+        <span class="sw"><i style="background:var(--muted)"></i>Muted</span>
+        <span class="sw"><i style="background:var(--signal)"></i>Signal</span>
+        <span class="sw"><i style="background:var(--night)"></i>Night</span>
+        <span class="sw"><i style="background:var(--slate)"></i>Slate</span>
+        <span class="sw"><i style="background:var(--good)"></i>Good</span>
+        <span class="sw"><i style="background:var(--danger)"></i>Alert</span>
+      </div>
+      <p class="tok-note" style="margin-top:12px">Signal is spent on <b>one thing per screen</b>: the live thing that wants your attention. Night indigo appears <b>only</b> when a train crosses midnight.</p>
+    </div>
+    <div>
+      <div class="tok-h">Type</div>
+      <div class="spec-time">08:16 <span style="color:var(--muted);font-weight:400">→</span> 12:29</div>
+      <div class="spec-label">Display · 800 · tabular numerals</div>
+      <div class="spec-mono">PNR 5KDX9Q · pass IRL-2607-4413</div>
+      <p class="tok-note" style="margin-top:10px">Scale 34 / 26 / 22 / 15 / 13 / 11. Codes and references in <b>monospace</b>. 8-pt spacing grid, radii 6 / 10 / 12.</p>
+    </div>
+  </div>
+
+  <!-- ============ 1 · TRIP / GANTT ============ -->
+  <section class="screen-sec" id="s-trip">
+    <div class="sec-head"><span class="sec-num">1/4</span><h2>Trip — the Gantt is the home screen</h2></div>
+    <p class="sec-why">The whole trip at a glance: one row per city, nights on the bar, the travel strip below, today in signal. A stop without a booked bed warns quietly. Scrolls sideways like a timetable.</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sb-icons">●●●● ᯤ ▮▮▮</span></div>
+      <div class="screen">
+        <div class="app-h">
+          <div class="app-kicker">14 — 30 July · 4 travelers</div>
+          <div class="app-title">Sommartåg 2026</div>
+          <div class="app-sub">6 stops · 5 legs · 16 nights · <span class="live">day 9</span></div>
+        </div>
+
+        <div class="gantt-scroll">
+          <div class="gantt">
+            <div class="g-days">
+              <span></span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span class="today">22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span>
+            </div>
+            <div class="g-row">
+              <div class="g-label">Stockholm</div>
+              <div class="g-bar" style="grid-column: 2 / 4" title="Stockholm · 14–16 July · 2 nights">2 n</div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+            <div class="g-row">
+              <div class="g-label">København</div>
+              <div class="g-bar" style="grid-column: 4 / 6" title="København · 16–18 July · 2 nights">2 n</div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+            <div class="g-row">
+              <div class="g-label">Berlin</div>
+              <div class="g-bar" style="grid-column: 6 / 9" title="Berlin · 18–21 July · 3 nights">3 n</div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+            <div class="g-row">
+              <div class="g-label">Praha</div>
+              <div class="g-bar" style="grid-column: 9 / 12" title="Praha · 21–24 July · 3 nights">3 n</div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+            <div class="g-row">
+              <div class="g-label">Wien</div>
+              <div class="g-bar warn-bar" style="grid-column: 12 / 15" title="Wien · 24–27 July · no bed booked yet">3 n · no bed</div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+            <div class="g-row">
+              <div class="g-label">Venezia</div>
+              <div class="g-bar" style="grid-column: 15 / 18" title="Venezia · 28–30 July · 2 nights">2 n</div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+            <div class="g-row" style="height: 26px">
+              <div class="g-label"><small>TRAVEL</small></div>
+              <div class="g-travel" style="grid-column: 4" title="16 Jul · X 2000 + EC · Stockholm → København"></div>
+              <div class="g-travel" style="grid-column: 6" title="18 Jul · EC · København → Berlin"></div>
+              <div class="g-travel" style="grid-column: 9" title="21 Jul · EC 177 · Berlin → Praha"></div>
+              <div class="g-travel" style="grid-column: 12" title="24 Jul · RJ 73 · Praha → Wien"></div>
+              <div class="g-travel night-bar" style="grid-column: 14 / 16" title="27–28 Jul · NJ 233 night train · Wien → Venezia"></div>
+              <div class="g-today" style="grid-column: 10"></div>
+            </div>
+          </div>
+        </div>
+        <div class="g-key">
+          <span class="k-stay"><i></i>Stay</span>
+          <span class="k-night"><i></i>Night train</span>
+          <span class="k-today"><i></i>Today</span>
+        </div>
+
+        <div style="margin-top: 8px">
+          <div class="row">
+            <div>
+              <div class="stop-name">Wien <span class="chip warn" style="margin-left:6px">no bed booked</span></div>
+              <div class="stop-dates">Fri 24 → Mon 27 July</div>
+            </div>
+            <div class="stop-nights">3 <small>nights</small></div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="stop-name">Wien → Venezia <span class="chip night" style="margin-left:6px">NJ 233 · night</span></div>
+              <div class="stop-dates">Mon 27 · 21:27 → Tue 28 · 08:24 · couchette res. booked</div>
+            </div>
+            <div class="stop-nights">1 <small>travel day</small></div>
+          </div>
+        </div>
+
+        <div style="flex:1"></div>
+      </div>
+      <nav class="tabbar" aria-label="App tabs">
+        <button class="tab on" data-go="s-trip"><svg viewBox="0 0 24 24"><path d="M3 8h18M3 12h12M3 16h15"/></svg>Trip</button>
+        <button class="tab" data-go="s-trains"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l1.5-2.5M16 21l-1.5-2.5"/></svg>Trains</button>
+        <button class="tab" data-go="s-board"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Board</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>People</button>
+        <button class="tab" data-go="s-budget"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/></svg>Budget</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3-6.2L21 5l-1 3.5A8 8 0 0 1 21 12z"/></svg>Ask</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ============ 2 · TRAINS ============ -->
+  <section class="screen-sec" id="s-trains">
+    <div class="sec-head"><span class="sec-num">2/4</span><h2>Trains — times first, everything else second</h2></div>
+    <p class="sec-why">Search reads like a form on paper; results read like a departure poster. Realtime deviations surface in signal right in the numerals. One tap adds a journey to the trip.</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sb-icons">●●●● ᯤ ▮▮▮</span></div>
+      <div class="screen">
+        <div class="app-h">
+          <div class="app-kicker">Journey search</div>
+          <div class="app-title">Find trains</div>
+        </div>
+
+        <div>
+          <div class="field-row">
+            <span class="lab">From</span><span class="val">Berlin Hbf</span>
+            <span class="swap" title="Swap">⇅</span>
+          </div>
+          <div class="field-row">
+            <span class="lab">To</span><span class="val">Praha hl.n.</span>
+          </div>
+          <div class="field-row">
+            <span class="lab">When</span><span class="val">Tue 21 July · morning</span>
+          </div>
+        </div>
+        <button class="search-btn">Search journeys</button>
+
+        <div class="result-h"><span class="lab">6 options · via HAFAS · live</span></div>
+
+        <div class="row">
+          <div>
+            <div class="j-times">08:16 <span class="arr">→</span> 12:29</div>
+            <div class="j-meta"><b>EC 177</b> · direct · 4 h 13 · Gleis 11 · <b>pass ✓ no reservation needed</b></div>
+          </div>
+          <div class="j-side">
+            <button class="j-add">Add →</button>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <div class="j-times">10:16<span class="late">+12</span> <span class="arr">→</span> 14:41</div>
+            <div class="j-meta"><b>EC 179</b> · direct · 4 h 25 · Gleis 12 <span style="color:var(--signal-ink);font-weight:700">· running late</span></div>
+          </div>
+          <div class="j-side">
+            <button class="j-add">Add →</button>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <div class="j-times">12:16 <span class="arr">→</span> 16:29</div>
+            <div class="j-meta"><b>EC 253</b> · direct · 4 h 13 · Gleis 11</div>
+          </div>
+          <div class="j-side">
+            <button class="j-add">Add →</button>
+          </div>
+        </div>
+
+        <div style="flex:1"></div>
+      </div>
+      <nav class="tabbar" aria-label="App tabs">
+        <button class="tab" data-go="s-trip"><svg viewBox="0 0 24 24"><path d="M3 8h18M3 12h12M3 16h15"/></svg>Trip</button>
+        <button class="tab on" data-go="s-trains"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l1.5-2.5M16 21l-1.5-2.5"/></svg>Trains</button>
+        <button class="tab" data-go="s-board"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Board</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>People</button>
+        <button class="tab" data-go="s-budget"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/></svg>Budget</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3-6.2L21 5l-1 3.5A8 8 0 0 1 21 12z"/></svg>Ask</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ============ 3 · DEPARTURES ============ -->
+  <section class="screen-sec" id="s-board">
+    <div class="sec-head"><span class="sec-num">3/4</span><h2>Board — a departure board in your pocket</h2></div>
+    <p class="sec-why">The station board, reduced to what a traveler scans for: time, train, destination, platform. Delays rewrite the numeral in signal; a platform change flips the platform to signal; cancellations strike through.</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sb-icons">●●●● ᯤ ▮▮▮</span></div>
+      <div class="screen">
+        <div class="app-h">
+          <div class="app-kicker">Departures</div>
+          <div class="app-title">København H</div>
+          <div class="app-sub"><span class="live"><span class="live-dot"></span>LIVE</span> · updated 12:04 · pull to refresh</div>
+        </div>
+
+        <div style="margin-top: 4px">
+          <div class="dep-row">
+            <div class="dep-time" style="color:var(--signal-ink)">12:09<small>plan 12:04 +5</small></div>
+            <div><div class="dep-line">EC 395</div><div class="dep-dest">Hamburg Hbf</div><div class="dep-note">via Odense · Kolding</div></div>
+            <div class="dep-plat changed"><b>7</b><span>was 5</span></div>
+          </div>
+          <div class="dep-row">
+            <div class="dep-time">12:14</div>
+            <div><div class="dep-line">ØR 1044</div><div class="dep-dest">Malmö C</div><div class="dep-note">via CPH Airport</div></div>
+            <div class="dep-plat"><b>3</b><span>spor</span></div>
+          </div>
+          <div class="dep-row">
+            <div class="dep-time">12:26</div>
+            <div><div class="dep-line">IC 145</div><div class="dep-dest">Aarhus H</div><div class="dep-note">via Odense</div></div>
+            <div class="dep-plat"><b>4</b><span>spor</span></div>
+          </div>
+          <div class="dep-row cancelled">
+            <div class="dep-time">12:42</div>
+            <div><div class="dep-line">RE 1078</div><div class="dep-dest">Helsingør</div><div class="dep-note cancel-note">Cancelled · next 13:12</div></div>
+            <div class="dep-plat"><b>–</b><span>spor</span></div>
+          </div>
+          <div class="dep-row">
+            <div class="dep-time">12:55</div>
+            <div><div class="dep-line">IC 68</div><div class="dep-dest">Odense</div><div class="dep-note">on time</div></div>
+            <div class="dep-plat"><b>6</b><span>spor</span></div>
+          </div>
+        </div>
+
+        <div style="flex:1"></div>
+      </div>
+      <nav class="tabbar" aria-label="App tabs">
+        <button class="tab" data-go="s-trip"><svg viewBox="0 0 24 24"><path d="M3 8h18M3 12h12M3 16h15"/></svg>Trip</button>
+        <button class="tab" data-go="s-trains"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l1.5-2.5M16 21l-1.5-2.5"/></svg>Trains</button>
+        <button class="tab on" data-go="s-board"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Board</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>People</button>
+        <button class="tab" data-go="s-budget"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/></svg>Budget</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3-6.2L21 5l-1 3.5A8 8 0 0 1 21 12z"/></svg>Ask</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ============ 4 · BUDGET ============ -->
+  <section class="screen-sec" id="s-budget">
+    <div class="sec-head"><span class="sec-num">4/4</span><h2>Budget — money set like times</h2></div>
+    <p class="sec-why">One hero number answers "are we on budget?"; categories and balances answer "where did it go" and "who owes whom". Settlement is a short list of instructions, not a matrix.</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sb-icons">●●●● ᯤ ▮▮▮</span></div>
+      <div class="screen">
+        <div class="app-h">
+          <div class="app-kicker">Sommartåg 2026 · group total</div>
+        </div>
+
+        <div style="padding: 6px 0 2px">
+          <div class="hero-num">1 284 € <small>of 2 500 €</small></div>
+          <div class="hero-sub">Day 9 of 17 · on pace <b style="color:var(--good)">· 51 %</b></div>
+          <div class="prog"><i></i></div>
+        </div>
+
+        <div class="h3row">By category</div>
+        <div>
+          <div class="cat-row"><span class="lab">Sleep</span><div class="cat-bar" style="width: 86%" title="Sleep · 486 €"></div><span class="cat-val">486 €</span></div>
+          <div class="cat-row"><span class="lab">Transport</span><div class="cat-bar" style="width: 73%" title="Transport · 412 €"></div><span class="cat-val">412 €</span></div>
+          <div class="cat-row"><span class="lab">Food</span><div class="cat-bar" style="width: 42%" title="Food · 238 €"></div><span class="cat-val">238 €</span></div>
+          <div class="cat-row"><span class="lab">Fun</span><div class="cat-bar" style="width: 17%" title="Fun · 98 €"></div><span class="cat-val">98 €</span></div>
+          <div class="cat-row"><span class="lab">Reservations</span><div class="cat-bar" style="width: 9%" title="Reservations · 50 €"></div><span class="cat-val">50 €</span></div>
+        </div>
+
+        <div class="h3row">Balances</div>
+        <div>
+          <div class="row"><span class="bal-name">Lars</span><span class="bal-amt pos">+64.10 €</span></div>
+          <div class="row"><span class="bal-name">Emma</span><span class="bal-amt neg">−21.30 €</span></div>
+          <div class="row"><span class="bal-name">Jonas</span><span class="bal-amt neg">−42.80 €</span></div>
+        </div>
+
+        <div class="h3row">To settle</div>
+        <div>
+          <div class="settle"><span>Jonas <span class="dir">pays</span> Lars</span><b>42.80 €</b></div>
+          <div class="settle"><span>Emma <span class="dir">pays</span> Lars</span><b>21.30 €</b></div>
+        </div>
+
+        <div style="flex:1"></div>
+      </div>
+      <nav class="tabbar" aria-label="App tabs">
+        <button class="tab" data-go="s-trip"><svg viewBox="0 0 24 24"><path d="M3 8h18M3 12h12M3 16h15"/></svg>Trip</button>
+        <button class="tab" data-go="s-trains"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l1.5-2.5M16 21l-1.5-2.5"/></svg>Trains</button>
+        <button class="tab" data-go="s-board"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Board</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>People</button>
+        <button class="tab on" data-go="s-budget"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/></svg>Budget</button>
+        <button class="tab dim" title="Not mocked in phase 0"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3-6.2L21 5l-1 3.5A8 8 0 0 1 21 12z"/></svg>Ask</button>
+      </nav>
+    </div>
+  </section>
+
+  <footer>
+    <b>If this direction is approved</b>, Phase 1 translates these tokens into the app's theme file
+    and restyles all six screens (People and Ask follow the same system: list rows, hairlines,
+    mono for pass numbers). Nothing here requires any new dependency — it's StyleSheet + the
+    platform typeface.
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('.tab[data-go]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.go);
+      if (target) target.scrollIntoView({ block: 'start' });
+    });
+  });
+</script>

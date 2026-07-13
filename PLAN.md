@@ -84,18 +84,19 @@ direction is approved.
 
 ## Phases
 
-### Phase 0 — Design (next)
-- [ ] Design tokens (type scale, spacing, radii, light/dark palettes, accent)
-- [ ] Clickable HTML mockups: Trip/Gantt, Trains search, Departures, Budget
-- [ ] Review & approval gate
+### Phase 0 — Design
+- [x] Design tokens (`design/tokens.md`) — validated light/dark palettes
+- [x] Clickable HTML mockups (`design/mockups.html`): Trip/Gantt, Trains,
+      Departures, Budget
+- [ ] **Review & approval gate ← awaiting review**
 
 ### Phase 1 — Core app
-- [ ] Apply design system across all screens (restyle the spike)
-- [ ] Native date pickers everywhere
-- [ ] expo-secure-store for passports & pass numbers
-- [ ] Store schema version + migration
-- [ ] TTL caching in the transport adapter
-- [ ] ESLint/Prettier, vitest for money/date logic, CI (typecheck + test)
+- [ ] Apply design system across all screens (blocked on Phase 0 approval)
+- [ ] Native date pickers everywhere (done with the restyle)
+- [x] expo-secure-store vault for passports & pass numbers
+- [x] Store schema version + migration hook
+- [x] TTL caching in the transport adapter
+- [x] ESLint/Prettier, vitest for money/date logic, CI (typecheck + lint + test)
 
 ### Phase 2 — Assistant
 - [ ] Cloudflare Worker: holds Anthropic key, merges knowledge file + trip

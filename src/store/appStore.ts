@@ -20,6 +20,43 @@ import type {
 } from '../types';
 import { travelerPalette } from '../theme';
 import { uid } from '../utils/id';
+import { loadVault, saveVault, type SecureVault } from '../utils/secure';
+
+/**
+ * Bump when the persisted shape changes, and handle the old shape in
+ * `migrate` below. Never change persisted fields without a migration.
+ */
+const SCHEMA_VERSION = 1;
+
+/** Mirror sensitive fields into the platform keychain (best-effort async). */
+function syncVault(travelers: Traveler[]): void {
+  const vault: SecureVault = { passports: {}, passNumbers: {} };
+  for (const t of travelers) {
+    if (t.passportNumber) vault.passports[t.id] = t.passportNumber;
+    for (const p of t.passes) {
+      if (p.passNumber) vault.passNumbers[p.id] = p.passNumber;
+    }
+  }
+  void saveVault(vault);
+}
+
+/** Strip sensitive fields so they never land in AsyncStorage. */
+function stripSensitive(travelers: Traveler[]): Traveler[] {
+  return travelers.map((t) => ({
+    ...t,
+    passportNumber: undefined,
+    passes: t.passes.map((p) => ({ ...p, passNumber: '' })),
+  }));
+}
+
+/** Merge keychain values back into rehydrated travelers. */
+function mergeVault(travelers: Traveler[], vault: SecureVault): Traveler[] {
+  return travelers.map((t) => ({
+    ...t,
+    passportNumber: vault.passports[t.id] ?? t.passportNumber,
+    passes: t.passes.map((p) => ({ ...p, passNumber: vault.passNumbers[p.id] ?? p.passNumber })),
+  }));
+}
 
 interface AppState {
   trips: Trip[];
@@ -189,30 +226,38 @@ export const useAppStore = create<AppState>()(
         }));
         return traveler;
       },
-      updateTraveler: (id, patch) =>
+      updateTraveler: (id, patch) => {
         set((s) => ({
           travelers: s.travelers.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-        })),
-      removeTraveler: (id) =>
+        }));
+        syncVault(get().travelers);
+      },
+      removeTraveler: (id) => {
         set((s) => ({
           travelers: s.travelers.filter((t) => t.id !== id),
           trips: s.trips.map((t) => ({
             ...t,
             travelerIds: t.travelerIds.filter((tid) => tid !== id),
           })),
-        })),
-      addPass: (travelerId, pass) =>
+        }));
+        syncVault(get().travelers);
+      },
+      addPass: (travelerId, pass) => {
         set((s) => ({
           travelers: s.travelers.map((t) =>
             t.id === travelerId ? { ...t, passes: [...t.passes, { ...pass, id: uid('pass-') }] } : t,
           ),
-        })),
-      removePass: (travelerId, passId) =>
+        }));
+        syncVault(get().travelers);
+      },
+      removePass: (travelerId, passId) => {
         set((s) => ({
           travelers: s.travelers.map((t) =>
             t.id === travelerId ? { ...t, passes: t.passes.filter((p) => p.id !== passId) } : t,
           ),
-        })),
+        }));
+        syncVault(get().travelers);
+      },
 
       addExpense: (expense) =>
         set((s) => ({ expenses: [...s.expenses, { ...expense, id: uid('exp-') }] })),
@@ -228,6 +273,24 @@ export const useAppStore = create<AppState>()(
     {
       name: 'fabinterrail-store',
       storage: createJSONStorage(() => AsyncStorage),
+      version: SCHEMA_VERSION,
+      migrate: (persisted, _version) => {
+        // v1 is the first versioned schema. When bumping SCHEMA_VERSION,
+        // transform `persisted` from `_version` to the current shape here.
+        return persisted as AppState;
+      },
+      partialize: (state) =>
+        ({
+          ...state,
+          travelers: stripSensitive(state.travelers),
+        }) as AppState,
+      onRehydrateStorage: () => () => {
+        // Sensitive fields live in the keychain, not AsyncStorage — merge
+        // them back in once the persisted (stripped) state has loaded.
+        void loadVault().then((vault) => {
+          useAppStore.setState((s) => ({ travelers: mergeVault(s.travelers, vault) }));
+        });
+      },
     },
   ),
 );

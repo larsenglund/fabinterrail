@@ -14,6 +14,32 @@ import { delayMinutes } from '../utils/date';
 
 const BASE = 'https://v6.db.transport.rest';
 
+/**
+ * In-memory TTL cache. The backend is a rate-limited community service, so
+ * be a good citizen: station lookups rarely change (long TTL), boards and
+ * journeys are realtime (short TTL, still deduplicates rapid re-queries).
+ */
+const TTL = {
+  stations: 24 * 60 * 60_000,
+  departures: 60_000,
+  journeys: 30_000,
+} as const;
+
+const cache = new Map<string, { expires: number; data: unknown }>();
+
+async function cached<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
+  const hit = cache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.data as T;
+  const data = await fetcher();
+  cache.set(key, { expires: Date.now() + ttlMs, data });
+  if (cache.size > 300) {
+    for (const [k, v] of cache) {
+      if (v.expires <= Date.now()) cache.delete(k);
+    }
+  }
+  return data;
+}
+
 async function get<T>(path: string, params: Record<string, string | number | boolean>): Promise<T> {
   const qs = Object.entries(params)
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
@@ -78,13 +104,15 @@ interface RawJourney {
 /** Fuzzy search for stations across the network. */
 export async function searchStations(query: string, limit = 8): Promise<Station[]> {
   if (query.trim().length < 2) return [];
-  const raw = await get<RawLocation[]>('/locations', {
-    query: query.trim(),
-    results: limit,
-    stops: true,
-    addresses: false,
-    poi: false,
-  });
+  const raw = await cached(`loc:${query.trim().toLowerCase()}:${limit}`, TTL.stations, () =>
+    get<RawLocation[]>('/locations', {
+      query: query.trim(),
+      results: limit,
+      stops: true,
+      addresses: false,
+      poi: false,
+    }),
+  );
   return raw
     .filter((l) => (l.type === 'stop' || l.type === 'station') && l.id && l.name)
     .map((l) => ({
@@ -98,9 +126,12 @@ export async function searchStations(query: string, limit = 8): Promise<Station[
 
 /** Live departure board for a station, with realtime delays. */
 export async function getDepartures(stationId: string, durationMin = 120): Promise<Departure[]> {
-  const raw = await get<{ departures: RawStopover[] }>(
-    `/stops/${encodeURIComponent(stationId)}/departures`,
-    { duration: durationMin, results: 30, remarks: true },
+  const raw = await cached(`dep:${stationId}:${durationMin}`, TTL.departures, () =>
+    get<{ departures: RawStopover[] }>(`/stops/${encodeURIComponent(stationId)}/departures`, {
+      duration: durationMin,
+      results: 30,
+      remarks: true,
+    }),
   );
   return (raw.departures ?? [])
     .filter((d) => d.plannedWhen || d.when)
@@ -138,7 +169,11 @@ export async function searchJourneys(q: JourneyQuery): Promise<JourneyVM[]> {
   };
   if (q.departure) params.departure = q.departure.toISOString();
 
-  const raw = await get<{ journeys: RawJourney[] }>('/journeys', params);
+  const raw = await cached(
+    `jny:${q.fromId}:${q.toId}:${params.departure ?? 'now'}:${params.results}`,
+    TTL.journeys,
+    () => get<{ journeys: RawJourney[] }>('/journeys', params),
+  );
   return (raw.journeys ?? []).map(toJourneyVM).filter((j): j is JourneyVM => j !== null);
 }
 

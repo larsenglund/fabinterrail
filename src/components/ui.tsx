@@ -5,9 +5,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TextInputProps,
+  type TextInputProps,
   View,
-  ViewStyle,
+  type ViewStyle,
 } from 'react-native';
 
 import { colors, spacing } from '../theme';
