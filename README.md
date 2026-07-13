@@ -32,6 +32,12 @@ npm run web        # or run in the browser
 npm run typecheck  # tsc --noEmit
 ```
 
+**Try it in a browser without installing anything:** every push deploys the
+web build to GitHub Pages (`.github/workflows/deploy-web.yml`). One-time
+setup: repo **Settings → Pages → Source: "GitHub Actions"**. The app then
+lives at `https://<owner>.github.io/fabinterrail/`. For the real mobile
+experience use Expo Go (`npm start`, scan the QR).
+
 ## Architecture
 
 ```

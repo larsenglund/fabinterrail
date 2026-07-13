@@ -16,7 +16,11 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "baseUrl": "/fabinterrail"
     }
   }
 }
