@@ -18,6 +18,7 @@ export function StationPicker({ label, value, onSelect }: Props) {
   const p = usePalette();
   const [query, setQuery] = useState(value?.name ?? '');
   const [results, setResults] = useState<Station[]>([]);
+  const [error, setError] = useState<string>();
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,8 +28,10 @@ export function StationPicker({ label, value, onSelect }: Props) {
     timer.current = setTimeout(async () => {
       try {
         setResults(await searchStations(query));
-      } catch {
+        setError(undefined);
+      } catch (e) {
         setResults([]);
+        setError(e instanceof Error ? e.message : 'Station search failed');
       }
     }, 350);
     return () => {
@@ -48,6 +51,11 @@ export function StationPicker({ label, value, onSelect }: Props) {
         }}
         onFocus={() => setOpen(true)}
       />
+      {open && error && query.trim().length >= 2 && (
+        <Text style={{ color: p.danger, fontSize: 12, marginTop: -spacing.s, marginBottom: spacing.m }}>
+          {error}
+        </Text>
+      )}
       {open && results.length > 0 && (
         <View style={[styles.dropdown, { backgroundColor: p.field, borderColor: p.hair }]}>
           {results.map((st, i) => (
